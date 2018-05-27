@@ -2,11 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define str(x) #x
-#define xstr(x) str(x)
-
 typedef enum {MOVE_RIGHT, MOVE_STAY, MOVE_LEFT} moveType;
 typedef enum {false, true} bool;
+
+typedef struct _input {
+	char value;
+	char originalValue;
+	struct _input *prev;
+	struct _input *next;
+} input;
 
 typedef struct _transition {
 	int startState;
@@ -22,8 +26,44 @@ typedef struct _state {
 	transition *transitions;
 } state;
 
-int main(int argc, char const *argv[])
-{
+void loadInput(input **headCell) {
+	char parsing_ch;
+	input *cellCursor = NULL;
+	while ((parsing_ch = getc(stdin)) != EOF) {
+		if (parsing_ch != '\n') {
+			if (*headCell == NULL) {
+				*headCell = malloc(sizeof(input));
+				cellCursor = *headCell;
+				cellCursor->prev = NULL;
+ 			} else {
+				cellCursor->next = malloc(sizeof(input));
+				cellCursor->next->prev = cellCursor;
+				cellCursor = cellCursor->next;
+			}
+			cellCursor->value = parsing_ch;
+			cellCursor->originalValue = parsing_ch;
+			cellCursor->next = NULL;
+		} else {
+			break;
+		}
+	}
+}
+
+void printInput(input *cell) {
+	input *cellCursor = NULL;
+	cellCursor = cell;
+	while (cellCursor != NULL) {
+		printf("> %c\n", cellCursor->value);
+		cellCursor = cellCursor->next;
+	}
+}
+
+int simulate(input *currentCell, int currentState) {
+
+	return 0;
+}
+
+int main(int argc, char const *argv[]) {
 	int statesSize;
 	int lastStatesSize;
 	int maxSteps;
@@ -39,7 +79,9 @@ int main(int argc, char const *argv[])
 	
 	statesSize = 10;
 	lastStatesSize= 10;
+	input* cell = NULL;
 	state** states = (state**) malloc(statesSize * sizeof(state*));
+
 	for (i = 0; i < statesSize; i++) 
 		states[i] = NULL;
 
@@ -149,6 +191,12 @@ int main(int argc, char const *argv[])
 			}
 		}
 	}
+
+	loadInput(&cell);
+	printInput(cell);
+
+	int result = 0;
+	result = simulate(cell, 0);
 
 	printf("oko\n");
 	return 0;

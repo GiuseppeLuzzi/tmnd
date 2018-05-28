@@ -63,17 +63,16 @@ void printInput(input *cell) {
 int simulate(state ***states, input **cell, int currentState, int steps, int maxSteps) {
 	state **statesCursor = *states;
 	input *cellCursor = *cell;
-	int result = -1;
-
-	if (result == 1)
-		return 1;
-	if (steps > maxSteps)
-		return 2;
-
 	transition *transitionCursor = statesCursor[currentState]->transitions;
+	printf("%c | %c | %d | %d \n", statesCursor[currentState]->transitions->inChar, cellCursor->value, currentState, steps);
+
+	if (steps > maxSteps) return 2;
+
+	int result = -1;
+	int counter = 0;
 	while (transitionCursor != NULL) {
-		printf("%d -> %d (%c==%c)\n", currentState, transitionCursor->endState, cellCursor->value, transitionCursor->inChar);
-		if (cellCursor->value == transitionCursor->inChar) {
+		if (transitionCursor->inChar == cellCursor->value) {
+			counter += 1;
 			cellCursor->value = transitionCursor->outChar;
 
 			if (transitionCursor->move == MOVE_RIGHT)
@@ -83,18 +82,21 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 			else if (transitionCursor->move == MOVE_STAY)
 				result = simulate(&statesCursor, &(cellCursor), transitionCursor->endState, steps+1, maxSteps);
 
-			printf("Step %d (%c->%c): %d\n", steps+1, transitionCursor->inChar, transitionCursor->outChar, result);
+			cellCursor->value = cellCursor->originalValue;
+			if (result == 1) {
+				printf("!!!!! RESULT = 1\n");
+				return 1;
+			}
 		}
 		transitionCursor = transitionCursor->next;
 	}
-
-	if (statesCursor[currentState]->final && result == -1)
+	if (statesCursor[currentState]->final && counter == 0) {
+		printf("!!!!! STATO FINALE E TERMINALE!\n");
 		return 1;
-
-	if (result == -1)
+	}
+	if (result == -1) {
 		return 0;
-
-	printf("%c | %c | %d | %d \n", statesCursor[currentState]->transitions->inChar, cellCursor->value, currentState, steps);
+	}
 	return result;
 }
 

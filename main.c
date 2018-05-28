@@ -30,6 +30,7 @@ char m2c(moveType move) {
 	if (move == MOVE_RIGHT) return 'R';
 	if (move == MOVE_LEFT) return 'L';
 	if (move == MOVE_STAY) return 'S';
+	return '-';
 }
 
 void loadInput(input **headCell) {
@@ -68,7 +69,8 @@ void printInput(input *cell) {
 /* return values: 0 - not accepted | 1 - accepted | 2 - undefined */
 int simulate(state ***states, input **cell, int currentState, int steps, int maxSteps) {
 	state **statesCursor = *states;
-	input *cellCursor = *cell;
+	input *cellCursor;
+	cellCursor = *cell;
 	transition *transitionCursor = statesCursor[currentState]->transitions;
 	/*printf("%c | %c | %d | %d \n", statesCursor[currentState]->transitions->inChar, cellCursor->value, currentState, steps);*/
 
@@ -85,14 +87,33 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 	while (transitionCursor != NULL) {
 		if (cellCursor->value == transitionCursor->inChar) {
 			printf("Da %d provo %d (%c=%c->%c;%c)\n", currentState, transitionCursor->endState, cellCursor->value, transitionCursor->inChar, transitionCursor->outChar, m2c(transitionCursor->move));
+			cellCursor->value = transitionCursor->outChar;
 
-			cellCursor->value = transitionCursor->inChar;
-			if (transitionCursor->move == MOVE_RIGHT)
+			if (transitionCursor->move == MOVE_RIGHT) {
+				if (cellCursor->next == NULL) {
+					input *newCell = malloc(sizeof(input));
+					newCell->value = '_';
+					newCell->originalValue = '_';
+					newCell->prev = cellCursor;
+					newCell->next = NULL;
+					cellCursor->next = newCell;
+				}
+
 				result = simulate(&statesCursor, &(cellCursor->next), transitionCursor->endState, steps+1, 0);
-			else if (transitionCursor->move == MOVE_LEFT)
+			} else if (transitionCursor->move == MOVE_LEFT) {
+				if (cellCursor->prev == NULL) {
+					input *newCell = malloc(sizeof(input));
+					newCell->value = '_';
+					newCell->originalValue = '_';
+					newCell->prev = NULL;
+					newCell->next = cellCursor;
+					cellCursor->prev = newCell;
+				}
+
 				result = simulate(&statesCursor, &(cellCursor->prev), transitionCursor->endState, steps+1, 0);
-			else if (transitionCursor->move == MOVE_STAY)
+			} else if (transitionCursor->move == MOVE_STAY) {
 				result = simulate(&statesCursor, &(cellCursor), transitionCursor->endState, steps+1, 0);
+			}
 
 			if (result == 1) {
 				printf("[%d]> %d\n", steps, currentState);

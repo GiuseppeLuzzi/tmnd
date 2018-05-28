@@ -29,6 +29,7 @@ typedef struct _state {
 void loadInput(input **headCell) {
 	char parsing_ch;
 	input *cellCursor = NULL;
+
 	while ((parsing_ch = getc(stdin)) != EOF) {
 		if (parsing_ch != '\n') {
 			if (*headCell == NULL) {
@@ -58,9 +59,43 @@ void printInput(input *cell) {
 	}
 }
 
-int simulate(input *currentCell, int currentState) {
+/* return values: 0 - not accepted | 1 - accepted | 2 - undefined */
+int simulate(state ***states, input **cell, int currentState, int steps, int maxSteps) {
+	state **statesCursor = *states;
+	input *cellCursor = *cell;
+	int result = -1;
 
-	return 0;
+	if (result == 1)
+		return 1;
+	if (steps > maxSteps)
+		return 2;
+
+	transition *transitionCursor = statesCursor[currentState]->transitions;
+	while (transitionCursor != NULL) {
+		printf("%d -> %d (%c==%c)\n", currentState, transitionCursor->endState, cellCursor->value, transitionCursor->inChar);
+		if (cellCursor->value == transitionCursor->inChar) {
+			cellCursor->value = transitionCursor->outChar;
+
+			if (transitionCursor->move == MOVE_RIGHT)
+				result = simulate(&statesCursor, &(cellCursor->next), transitionCursor->endState, steps+1, maxSteps);
+			else if (transitionCursor->move == MOVE_LEFT)
+				result = simulate(&statesCursor, &(cellCursor->prev), transitionCursor->endState, steps+1, maxSteps);
+			else if (transitionCursor->move == MOVE_STAY)
+				result = simulate(&statesCursor, &(cellCursor), transitionCursor->endState, steps+1, maxSteps);
+
+			printf("Step %d (%c->%c): %d\n", steps+1, transitionCursor->inChar, transitionCursor->outChar, result);
+		}
+		transitionCursor = transitionCursor->next;
+	}
+
+	if (statesCursor[currentState]->final && result == -1)
+		return 1;
+
+	if (result == -1)
+		return 0;
+
+	printf("%c | %c | %d | %d \n", statesCursor[currentState]->transitions->inChar, cellCursor->value, currentState, steps);
+	return result;
 }
 
 int main(int argc, char const *argv[]) {
@@ -80,7 +115,8 @@ int main(int argc, char const *argv[]) {
 	statesSize = 10;
 	lastStatesSize= 10;
 	input* cell = NULL;
-	state** states = (state**) malloc(statesSize * sizeof(state*));
+	/*state** states = (state**) malloc(statesSize * sizeof(state*));*/
+	state** states = malloc(statesSize * sizeof(state*));
 
 	for (i = 0; i < statesSize; i++) 
 		states[i] = NULL;
@@ -195,8 +231,11 @@ int main(int argc, char const *argv[]) {
 	loadInput(&cell);
 	printInput(cell);
 
-	int result = 0;
-	result = simulate(cell, 0);
+	int result = -1;
+	printf("aaa\n");
+	/* int simulate(state ***nastro, int currentState, int steps) { */
+	result = simulate(&states, &cell, 0, 0, maxSteps);
+	printf("result: %d\n", result);
 
 	printf("oko\n");
 	return 0;

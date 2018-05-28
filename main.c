@@ -26,12 +26,6 @@ typedef struct _state {
 	transition *transitions;
 } state;
 
-char m2c(moveType move) {
-	if (move == MOVE_RIGHT) return 'R';
-	if (move == MOVE_LEFT) return 'L';
-	if (move == MOVE_STAY) return 'S';
-}
-
 void loadInput(input **headCell) {
 	char parsing_ch;
 	input *cellCursor = NULL;
@@ -72,10 +66,6 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 	transition *transitionCursor = statesCursor[currentState]->transitions;
 	/*printf("%c | %c | %d | %d \n", statesCursor[currentState]->transitions->inChar, cellCursor->value, currentState, steps);*/
 
-	if (cellCursor == NULL) {
-		printf("Sono uscito dal nastro!!!\n");
-	}
-
 	if (statesCursor[currentState]->final) {
 		printf("[%d]> %d\n", steps, currentState);
 		return 1;
@@ -83,23 +73,11 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 
 	int result = -1;
 	while (transitionCursor != NULL) {
-		if (cellCursor->value == transitionCursor->inChar) {
-			printf("Da %d provo %d (%c=%c->%c;%c)\n", currentState, transitionCursor->endState, cellCursor->value, transitionCursor->inChar, transitionCursor->outChar, m2c(transitionCursor->move));
-
-			cellCursor->value = transitionCursor->inChar;
-			if (transitionCursor->move == MOVE_RIGHT)
-				result = simulate(&statesCursor, &(cellCursor->next), transitionCursor->endState, steps+1, 0);
-			else if (transitionCursor->move == MOVE_LEFT)
-				result = simulate(&statesCursor, &(cellCursor->prev), transitionCursor->endState, steps+1, 0);
-			else if (transitionCursor->move == MOVE_STAY)
-				result = simulate(&statesCursor, &(cellCursor), transitionCursor->endState, steps+1, 0);
-
-			if (result == 1) {
-				printf("[%d]> %d\n", steps, currentState);
-				return result;
-			}
-
-			cellCursor->value = cellCursor->originalValue;
+		printf("Provo %d\n", transitionCursor->endState);
+		result = simulate(&statesCursor, &cellCursor, transitionCursor->endState, steps+1, 0);
+		if (result == 1) {
+			printf("[%d]> %d\n", steps, currentState);
+			return result;
 		}
 		transitionCursor = transitionCursor->next;
 	}

@@ -7,7 +7,7 @@ typedef enum {false, true} bool;
 
 typedef struct _input {
 	char value;
-	char originalValue;
+	/*char originalValue;*/
 	struct _input *prev;
 	struct _input *next;
 } input;
@@ -38,8 +38,11 @@ bool loadInput(input **headCell) {
 	char parsing_ch;
 	input *cellCursor = NULL;
 	while ((parsing_ch = getc(stdin)) != EOF) {
+		/*printf("<<%c>>\n", parsing_ch);*/
 		if (parsing_ch != '\n') {
+			/*printf(". a\n");*/
 			if (*headCell == NULL) {
+				/*printf(". b\n");*/
 				*headCell = malloc(sizeof(input));
 				cellCursor = *headCell;
 				cellCursor->prev = NULL;
@@ -49,7 +52,7 @@ bool loadInput(input **headCell) {
 				cellCursor = cellCursor->next;
 			}
 			cellCursor->value = parsing_ch;
-			cellCursor->originalValue = parsing_ch;
+			/*cellCursor->originalValue = parsing_ch;*/
 			cellCursor->next = NULL;
 		} else {
 			return true;
@@ -69,8 +72,9 @@ void printInput(input *cell) {
 }
 
 void freeNastro(input **headCell) {
-	input *cellCursor;
+	input *cellCursor = NULL;
 	cellCursor = *headCell;
+
 	while (cellCursor->next != NULL) {
 		cellCursor = cellCursor->next;
 	}
@@ -86,6 +90,7 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 	input *cellCursor;
 	input *_headCell = *headCell;
 	cellCursor = *cell;
+	/*transition *transitionCursor = statesCursor[currentState]->transitions;*/
 	transition *transitionCursor = statesCursor[currentState]->transitions;
 
 	char originalValue;
@@ -121,7 +126,7 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 					/*printf("Sono uscito dal nastro (davanti)!!\n");*/
 					input *newCell = malloc(sizeof(input));
 					newCell->value = '_';
-					newCell->originalValue = '_';
+					/*newCell->originalValue = '_';*/
 					newCell->prev = cellCursor;
 					newCell->next = NULL;
 					cellCursor->next = newCell;
@@ -133,7 +138,7 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 					/*printf("Sono uscito dal nastro (indietro)!!\n");*/
 					input *newCell = malloc(sizeof(input));
 					newCell->value = '_';
-					newCell->originalValue = '_';
+					/*newCell->originalValue = '_';*/
 					newCell->prev = NULL;
 					newCell->next = cellCursor;
 					cellCursor->prev = newCell;
@@ -194,6 +199,7 @@ int main(int argc, char const *argv[]) {
 			parsing_line[parsing_index] = parsing_ch;
 			parsing_index++;
 		} else {
+			/*printf(">>%s\n", parsing_line);*/
 			if ((parsing_step == 0) && (strcmp(parsing_line, "tr") == 0)) {
 				parsing_step = 1;
 			} else if (parsing_step == 1) {
@@ -211,7 +217,7 @@ int main(int argc, char const *argv[]) {
 					else if (parsing_move == 'L')
 						node->move = MOVE_LEFT;
 
-					/*printf(">> %d %c %c %d %d\n", node->startState, node->inChar, node->outChar, node->move, node->endState);*/
+					/*printf(">>>> %d %c %c %d %d\n", node->startState, node->inChar, node->outChar, node->move, node->endState);*/
 					
 					/* Ingrandisco l'array quanto necessario */
 					while ((node->startState > (statesSize - 1)) || (node->endState > (statesSize - 1))) {
@@ -251,8 +257,9 @@ int main(int argc, char const *argv[]) {
 						state_node->final = true;
 						state_node->transitions = NULL;
 						states[parsing_state] = state_node;
-					} else 
+					} else {
 						states[parsing_state]->final = true;
+					}
 					/*printf(">>> #%d diventa finale\n", parsing_state);*/
 				} else if (strcmp(parsing_line, "max") == 0) {
 					parsing_step = 3;
@@ -272,24 +279,27 @@ int main(int argc, char const *argv[]) {
 	}
 
 	/*printf(">>> Riepilogo\n");
-	printf("- Max steps: %d\n", maxSteps);*/
+	printf("- Max steps: %d\n", maxSteps);
+	printf("- States: %d\n", statesSize);
+
 	for (i = 0; i < statesSize; i++) {
 		if (states[i] != NULL) {
-			/*printf("- Stato #%d (%d)\n", i, states[i]->final);*/
+			printf("- Stato #%d (%d)\n", i, states[i]->final);
 			if (states[i]->transitions != NULL) {
 				transition *transitionCursor = states[i]->transitions;
 				while (transitionCursor != NULL) {
-					/*printf("\t %d -> %d [%c|%c|%d]\n",
+					printf("\t %d -> %d [%c|%c|%d]\n",
 							transitionCursor->startState,
 							transitionCursor->endState,
 							transitionCursor->inChar,
 							transitionCursor->outChar,
-							transitionCursor->move);*/
+							transitionCursor->move);
 					transitionCursor = transitionCursor->next;
 				}
 			}
 		}
 	}
+	printf("bbb\n");*/
 
 	/*while (lineToSkip > 0) {
 		while ((parsing_ch = getc(stdin)) != EOF) {
@@ -299,26 +309,38 @@ int main(int argc, char const *argv[]) {
 		}
 		lineToSkip -= 1;
 	}*/
-	int loading = true;
-	do {
-
-		loading = loadInput(&cell);
-		/*printInput(cell);*/
+	while (loadInput(&cell)) {
+		/*printf("1)\n");
+		printf("2)\n");
+		printInput(cell);*/
 
 		int result = 0;
 		/*printf("aaa\n");*/
 		/* int simulate(state ***nastro, int currentState, int steps) { */
 		result = simulate(&states, &cell, 0, 0, maxSteps, &cell);
 		freeNastro(&cell);
+		free(cell);
 		cell = NULL;
 		if (result == 2) {
 			printf("U\n");
 		} else {
 			printf("%d\n", result);
 		}
+	}
 
-	} while (loading);
+	for (i = 0; i < statesSize; i++) {
+		if (states[i] != NULL) {
+			transition *tempTransition = NULL;
+			transition *transitionCursor = states[i]->transitions;
+			while (transitionCursor != NULL) {
+				tempTransition = transitionCursor;
+				transitionCursor = transitionCursor->next;
+				free(tempTransition);
+			}
+			states[i]->transitions = NULL;
+		}
+	}
+	free(states);
 
-	free(cell);
 	return 0;
 }

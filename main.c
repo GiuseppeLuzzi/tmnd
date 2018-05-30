@@ -61,36 +61,43 @@ void printInput(input *cell) {
 	input *cellCursor = NULL;
 	cellCursor = cell;
 	while (cellCursor != NULL) {
-		printf("> %c\n", cellCursor->value);
+		printf(" %c |", cellCursor->value);
 		cellCursor = cellCursor->next;
 	}
+	printf("\n");
 }
 
 /* return values: 0 - not accepted | 1 - accepted | 2 - undefined */
-int simulate(state ***states, input **cell, int currentState, int steps, int maxSteps) {
+int simulate(state ***states, input **cell, int currentState, int steps, int maxSteps, input **headCell) {
 	state **statesCursor = *states;
 	input *cellCursor;
+	input *_headCell = *headCell;
 	cellCursor = *cell;
 	transition *transitionCursor = statesCursor[currentState]->transitions;
-	/*printf("%c | %c | %d | %d \n", statesCursor[currentState]->transitions->inChar, cellCursor->value, currentState, steps);*/
 
+	/*printf("%c | %c | %d | %d \n", statesCursor[currentState]->transitions->inChar, cellCursor->value, currentState, steps);*/
+	printf("[>%d] -----------------------------------------------------------\n", steps);
 	if (cellCursor == NULL) {
 		printf("Sono uscito dal nastro!!!\n");
 	}
 
+	/* Se lo stato è finale, l'esecuzione termina */
 	if (statesCursor[currentState]->final) {
 		printf("[%d]> %d\n", steps, currentState);
 		return 1;
 	}
 
+
 	int result = -1;
 	while (transitionCursor != NULL) {
 		if (cellCursor->value == transitionCursor->inChar) {
 			printf("Da %d provo %d (%c=%c->%c;%c)\n", currentState, transitionCursor->endState, cellCursor->value, transitionCursor->inChar, transitionCursor->outChar, m2c(transitionCursor->move));
+			
 			cellCursor->value = transitionCursor->outChar;
-
+			printInput(*headCell);
 			if (transitionCursor->move == MOVE_RIGHT) {
 				if (cellCursor->next == NULL) {
+					printf("Sono uscito dal nastro (davanti)!!\n");
 					input *newCell = malloc(sizeof(input));
 					newCell->value = '_';
 					newCell->originalValue = '_';
@@ -99,9 +106,10 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 					cellCursor->next = newCell;
 				}
 
-				result = simulate(&statesCursor, &(cellCursor->next), transitionCursor->endState, steps+1, 0);
+				result = simulate(&statesCursor, &(cellCursor->next), transitionCursor->endState, steps+1, 0, &_headCell);
 			} else if (transitionCursor->move == MOVE_LEFT) {
 				if (cellCursor->prev == NULL) {
+					printf("Sono uscito dal nastro (indietro)!!\n");
 					input *newCell = malloc(sizeof(input));
 					newCell->value = '_';
 					newCell->originalValue = '_';
@@ -110,9 +118,9 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 					cellCursor->prev = newCell;
 				}
 
-				result = simulate(&statesCursor, &(cellCursor->prev), transitionCursor->endState, steps+1, 0);
+				result = simulate(&statesCursor, &(cellCursor->prev), transitionCursor->endState, steps+1, 0, &_headCell);
 			} else if (transitionCursor->move == MOVE_STAY) {
-				result = simulate(&statesCursor, &(cellCursor), transitionCursor->endState, steps+1, 0);
+				result = simulate(&statesCursor, &(cellCursor), transitionCursor->endState, steps+1, 0, &_headCell);
 			}
 
 			if (result == 1) {
@@ -124,6 +132,8 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 		}
 		transitionCursor = transitionCursor->next;
 	}
+
+	printf("[<%d] -----------------------------------------------------------\n", steps);
 	return result;
 }
 
@@ -263,7 +273,7 @@ int main(int argc, char const *argv[]) {
 	int result = -1;
 	printf("aaa\n");
 	/* int simulate(state ***nastro, int currentState, int steps) { */
-	result = simulate(&states, &cell, 0, 0, maxSteps);
+	result = simulate(&states, &cell, 0, 0, maxSteps, &cell);
 	printf("result: %d\n", result);
 
 	printf("oko\n");

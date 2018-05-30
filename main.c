@@ -319,7 +319,7 @@ int main(int argc, char const *argv[]) {
 		/* int simulate(state ***nastro, int currentState, int steps) { */
 		result = simulate(&states, &cell, 0, 0, maxSteps, &cell);
 		freeNastro(&cell);
-		free(cell);
+		/*free(cell);*/
 		cell = NULL;
 		if (result == 2) {
 			printf("U\n");

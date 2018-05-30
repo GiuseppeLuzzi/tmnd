@@ -75,6 +75,8 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 	cellCursor = *cell;
 	transition *transitionCursor = statesCursor[currentState]->transitions;
 
+	char originalValue;
+
 	/*printf("%c | %c | %d | %d \n", statesCursor[currentState]->transitions->inChar, cellCursor->value, currentState, steps);*/
 	printf("[>%d] -----------------------------------------------------------\n", steps);
 	if (cellCursor == NULL) {
@@ -93,6 +95,8 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 		if (cellCursor->value == transitionCursor->inChar) {
 			printf("Da %d provo %d (%c=%c->%c;%c)\n", currentState, transitionCursor->endState, cellCursor->value, transitionCursor->inChar, transitionCursor->outChar, m2c(transitionCursor->move));
 			
+			/*cellCursor->value = transitionCursor->outChar;*/
+			originalValue = cellCursor->value;
 			cellCursor->value = transitionCursor->outChar;
 			printInput(*headCell);
 			if (transitionCursor->move == MOVE_RIGHT) {
@@ -128,7 +132,7 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 				return result;
 			}
 
-			cellCursor->value = cellCursor->originalValue;
+			cellCursor->value = originalValue;
 		}
 		transitionCursor = transitionCursor->next;
 	}

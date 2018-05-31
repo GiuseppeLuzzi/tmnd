@@ -338,7 +338,7 @@ int main(int argc, char const *argv[]) {
 		int result = 0;
 		/*printf("aaa\n");*/
 		/* int simulate(state ***nastro, int currentState, int steps) { */
-		result = simulate(&states, &cell, 0, 0, maxSteps, &cell);
+		/*result = simulate(&states, &cell, 0, 0, maxSteps, &cell);*/
 		freeNastro(&cell);
 		/*free(cell);*/
 		cell = NULL;
@@ -349,7 +349,7 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	for (i = 0; i < statesSize; i++) {
+	/*for (i = 0; i < statesSize; i++) {
 		if (states[i] != NULL) {
 			transition *tempTransition = NULL;
 			transition *transitionCursor = states[i]->transitions;
@@ -361,7 +361,7 @@ int main(int argc, char const *argv[]) {
 			states[i]->transitions = NULL;
 		}
 	}
-	free(states);
+	free(states);*/
 	#ifdef BENCH
 	clock_t end = clock();
 	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;

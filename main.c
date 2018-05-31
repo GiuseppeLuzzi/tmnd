@@ -2,6 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define BENCH
+#ifdef BENCH
+#include <time.h>
+#endif
+
+#define DEBUG
+
 typedef enum {MOVE_RIGHT, MOVE_STAY, MOVE_LEFT} moveType;
 typedef enum {false, true} bool;
 
@@ -114,13 +121,15 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 		return 2;
 	}
 	while (transitionCursor != NULL) {
+		/*printf("ddd\n");*/
 		if (cellCursor->value == transitionCursor->inChar) {
-			/*printf("Da %d provo %d (%c=%c->%c;%c)\n", currentState, transitionCursor->endState, cellCursor->value, transitionCursor->inChar, transitionCursor->outChar, m2c(transitionCursor->move));*/
-			
+			/*printf("eee\n");
+			printf("Da %d provo %d (%c=%c->%c;%c)\n", currentState, transitionCursor->endState, cellCursor->value, transitionCursor->inChar, transitionCursor->outChar, m2c(transitionCursor->move));*/
 			/*cellCursor->value = transitionCursor->outChar;*/
 			originalValue = cellCursor->value;
 			cellCursor->value = transitionCursor->outChar;
-			/*printInput(*headCell);*/
+			/*printInput(*headCell);
+			printf("ddd\n");*/
 			if (transitionCursor->move == MOVE_RIGHT) {
 				if (cellCursor->next == NULL) {
 					/*printf("Sono uscito dal nastro (davanti)!!\n");*/
@@ -131,7 +140,7 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 					newCell->next = NULL;
 					cellCursor->next = newCell;
 				}
-
+				/*printf("aaa\n");*/
 				result = simulate(&statesCursor, &(cellCursor->next), transitionCursor->endState, steps+1, maxSteps, &_headCell);
 			} else if (transitionCursor->move == MOVE_LEFT) {
 				if (cellCursor->prev == NULL) {
@@ -143,12 +152,12 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 					newCell->next = cellCursor;
 					cellCursor->prev = newCell;
 				}
-
+				/*printf("bbb\n");*/
 				result = simulate(&statesCursor, &(cellCursor->prev), transitionCursor->endState, steps+1, maxSteps, &_headCell);
 			} else if (transitionCursor->move == MOVE_STAY) {
+				/*printf("ccc\n");*/
 				result = simulate(&statesCursor, &(cellCursor), transitionCursor->endState, steps+1, maxSteps, &_headCell);
 			}
-
 			if (result == 1) {
 				/*printf("[%d]> %d\n", steps, currentState);*/
 				return result;
@@ -167,6 +176,10 @@ int simulate(state ***states, input **cell, int currentState, int steps, int max
 }
 
 int main(int argc, char const *argv[]) {
+	#ifdef BENCH
+	clock_t begin = clock();
+	#endif
+	
 	int statesSize;
 	int lastStatesSize;
 	int maxSteps;
@@ -176,7 +189,7 @@ int main(int argc, char const *argv[]) {
 	int parsing_state;
 	char parsing_ch;
 	char parsing_move;
-	char parsing_line[11];
+	char parsing_line[25];
 	
 	int i;
 	
@@ -191,7 +204,7 @@ int main(int argc, char const *argv[]) {
 
 	parsing_step = 0;
 	parsing_index = 0;
-	for (i = 0; i < 11; i++) 
+	for (i = 0; i < 25; i++) 
 		parsing_line[i] = (char) 0;
 
 	while ((parsing_ch = getc(stdin)) != EOF) {
@@ -238,6 +251,14 @@ int main(int argc, char const *argv[]) {
 						state_node->transitions = NULL;
 						states[node->startState] = state_node;
 					}
+
+					if (states[node->endState] == NULL) {
+						state* state_node = (state*) malloc(sizeof(state));
+						state_node->final = false;
+						state_node->transitions = NULL;
+						states[node->endState] = state_node;
+					}
+
 					if ((states[node->startState])->transitions != NULL) {
 						node->next = (states[node->startState])->transitions;
 						(states[node->startState])->transitions = node;
@@ -273,7 +294,7 @@ int main(int argc, char const *argv[]) {
 				}
 			}
 			parsing_index = 0;
-			for (i = 0; i < 11; i++) 
+			for (i = 0; i < 25; i++) 
 				parsing_line[i] = (char) 0;
 		}
 	}
@@ -341,6 +362,10 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 	free(states);
-
+	#ifdef BENCH
+	clock_t end = clock();
+	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+	printf("%fs (%f)\n", time_spent, (double)(end - begin));
+	#endif
 	return 0;
 }

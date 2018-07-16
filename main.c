@@ -92,88 +92,7 @@ void freeNastro(input **headCell) {
 }
 
 /* return values: 0 - not accepted | 1 - accepted | 2 - undefined */
-int simulate(state ***states, input **cell, int currentState, int steps, int maxSteps, input **headCell) {
-	state **statesCursor = *states;
-	input *cellCursor;
-	input *_headCell = *headCell;
-	cellCursor = *cell;
-	/*transition *transitionCursor = statesCursor[currentState]->transitions;*/
-	transition *transitionCursor = statesCursor[currentState]->transitions;
 
-	char originalValue;
-
-	/*printf("%c | %c | %d | %d \n", statesCursor[currentState]->transitions->inChar, cellCursor->value, currentState, steps);*/
-	/*printf("[>%d] -----------------------------------------------------------\n", steps);*/
-	if (cellCursor == NULL) {
-		return 0;
-		/*printf("Sono uscito dal nastro!!!\n");*/
-	}
-
-	/* Se lo stato è finale, l'esecuzione termina */
-	if (statesCursor[currentState]->final) {
-		/*printf("[%d]> %d\n", steps, currentState);*/
-		return 1;
-	}
-
-
-	int result = 0;
-	if (steps > maxSteps) {
-		return 2;
-	}
-	while (transitionCursor != NULL) {
-		/*printf("ddd\n");*/
-		if (cellCursor->value == transitionCursor->inChar) {
-			/*printf("eee\n");
-			printf("Da %d provo %d (%c=%c->%c;%c)\n", currentState, transitionCursor->endState, cellCursor->value, transitionCursor->inChar, transitionCursor->outChar, m2c(transitionCursor->move));*/
-			/*cellCursor->value = transitionCursor->outChar;*/
-			originalValue = cellCursor->value;
-			cellCursor->value = transitionCursor->outChar;
-			/*printInput(*headCell);
-			printf("ddd\n");*/
-			if (transitionCursor->move == MOVE_RIGHT) {
-				if (cellCursor->next == NULL) {
-					/*printf("Sono uscito dal nastro (davanti)!!\n");*/
-					input *newCell = malloc(sizeof(input));
-					newCell->value = '_';
-					/*newCell->originalValue = '_';*/
-					newCell->prev = cellCursor;
-					newCell->next = NULL;
-					cellCursor->next = newCell;
-				}
-				/*printf("aaa\n");*/
-				result = simulate(&statesCursor, &(cellCursor->next), transitionCursor->endState, steps+1, maxSteps, &_headCell);
-			} else if (transitionCursor->move == MOVE_LEFT) {
-				if (cellCursor->prev == NULL) {
-					/*printf("Sono uscito dal nastro (indietro)!!\n");*/
-					input *newCell = malloc(sizeof(input));
-					newCell->value = '_';
-					/*newCell->originalValue = '_';*/
-					newCell->prev = NULL;
-					newCell->next = cellCursor;
-					cellCursor->prev = newCell;
-				}
-				/*printf("bbb\n");*/
-				result = simulate(&statesCursor, &(cellCursor->prev), transitionCursor->endState, steps+1, maxSteps, &_headCell);
-			} else if (transitionCursor->move == MOVE_STAY) {
-				/*printf("ccc\n");*/
-				result = simulate(&statesCursor, &(cellCursor), transitionCursor->endState, steps+1, maxSteps, &_headCell);
-			}
-			if (result == 1) {
-				/*printf("[%d]> %d\n", steps, currentState);*/
-				return result;
-			} else if (result == 2) {
-				/*printf("[%d]> U\n", steps);*/
-				return result;
-			}
-
-			cellCursor->value = originalValue;
-		}
-		transitionCursor = transitionCursor->next;
-	}
-
-	/*printf("[<%d] -----------------------------------------------------------\n", steps);*/
-	return result;
-}
 
 int main(int argc, char const *argv[]) {
 	#ifdef BENCH
@@ -196,7 +115,7 @@ int main(int argc, char const *argv[]) {
 	statesSize = 10;
 	lastStatesSize= 10;
 	input* cell = NULL;
-	/*state** states = (state**) malloc(statesSize * sizeof(state*));*/
+
 	state** states = malloc(statesSize * sizeof(state*));
 
 	for (i = 0; i < statesSize; i++) 
@@ -299,7 +218,7 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	/*printf(">>> Riepilogo\n");
+	printf(">>> Riepilogo\n");
 	printf("- Max steps: %d\n", maxSteps);
 	printf("- States: %d\n", statesSize);
 
@@ -320,7 +239,7 @@ int main(int argc, char const *argv[]) {
 			}
 		}
 	}
-	printf("bbb\n");*/
+	printf("bbb\n");
 
 	/*while (lineToSkip > 0) {
 		while ((parsing_ch = getc(stdin)) != EOF) {
@@ -330,38 +249,7 @@ int main(int argc, char const *argv[]) {
 		}
 		lineToSkip -= 1;
 	}*/
-	while (loadInput(&cell)) {
-		/*printf("1)\n");
-		printf("2)\n");
-		printInput(cell);*/
-
-		int result = 0;
-		/*printf("aaa\n");*/
-		/* int simulate(state ***nastro, int currentState, int steps) { */
-		/*result = simulate(&states, &cell, 0, 0, maxSteps, &cell);*/
-		freeNastro(&cell);
-		/*free(cell);*/
-		cell = NULL;
-		if (result == 2) {
-			printf("U\n");
-		} else {
-			printf("%d\n", result);
-		}
-	}
-
-	/*for (i = 0; i < statesSize; i++) {
-		if (states[i] != NULL) {
-			transition *tempTransition = NULL;
-			transition *transitionCursor = states[i]->transitions;
-			while (transitionCursor != NULL) {
-				tempTransition = transitionCursor;
-				transitionCursor = transitionCursor->next;
-				free(tempTransition);
-			}
-			states[i]->transitions = NULL;
-		}
-	}
-	free(states);*/
+	
 	#ifdef BENCH
 	clock_t end = clock();
 	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;

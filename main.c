@@ -14,7 +14,6 @@ typedef enum {false, true} bool;
 
 typedef struct _input {
 	char value;
-	/*char originalValue;*/
 	struct _input *prev;
 	struct _input *next;
 } input;
@@ -45,11 +44,8 @@ bool loadInput(input **headCell) {
 	char parsing_ch;
 	input *cellCursor = NULL;
 	while ((parsing_ch = getc(stdin)) != EOF) {
-		/*printf("<<%c>>\n", parsing_ch);*/
 		if (parsing_ch != '\n') {
-			/*printf(". a\n");*/
 			if (*headCell == NULL) {
-				/*printf(". b\n");*/
 				*headCell = malloc(sizeof(input));
 				cellCursor = *headCell;
 				cellCursor->prev = NULL;
@@ -59,7 +55,6 @@ bool loadInput(input **headCell) {
 				cellCursor = cellCursor->next;
 			}
 			cellCursor->value = parsing_ch;
-			/*cellCursor->originalValue = parsing_ch;*/
 			cellCursor->next = NULL;
 		} else {
 			return true;
@@ -131,7 +126,6 @@ int main(int argc, char const *argv[]) {
 			parsing_line[parsing_index] = parsing_ch;
 			parsing_index++;
 		} else {
-			/*printf(">>%s\n", parsing_line);*/
 			if ((parsing_step == 0) && (strcmp(parsing_line, "tr") == 0)) {
 				parsing_step = 1;
 			} else if (parsing_step == 1) {
@@ -148,8 +142,6 @@ int main(int argc, char const *argv[]) {
 						node->move = MOVE_STAY;
 					else if (parsing_move == 'L')
 						node->move = MOVE_LEFT;
-
-					/*printf(">>>> %d %c %c %d %d\n", node->startState, node->inChar, node->outChar, node->move, node->endState);*/
 					
 					/* Ingrandisco l'array quanto necessario */
 					while ((node->startState > (statesSize - 1)) || (node->endState > (statesSize - 1))) {

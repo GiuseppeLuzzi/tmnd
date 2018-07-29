@@ -8,6 +8,8 @@
 #endif
 
 #define DEBUG
+#define INPUT_BUFFER 18
+#define CHUNK_SIZE 15
 
 typedef enum {MOVE_RIGHT, MOVE_STAY, MOVE_LEFT} moveType;
 typedef enum {false, true} bool;
@@ -29,8 +31,21 @@ typedef struct _transition {
 
 typedef struct _state {
 	bool final;
-	transition *transitions;
+	transition *keys[8];
 } state;
+
+typedef struct _configuration {
+	int stateID;
+	long moves;
+	struct _configuration *next;
+} configuration;
+
+typedef struct _tapechunk {
+	int size;
+	char cells[CHUNK_SIZE];
+	struct _tapechunk *prev;
+	struct _tapechunk *next;
+} tapechunk;
 
 
 char m2c(moveType move) {
@@ -86,12 +101,90 @@ void freeNastro(input **headCell) {
 	}
 }
 
+void loadTapeChunk(tapechunk **tape) {
+	int counter = 0;
+	char parsing_ch;
+	tapechunk *tapeCursor = NULL;
+	tapeCursor = *tape;
+
+	while ((parsing_ch = getc(stdin)) != EOF) {
+		if (parsing_ch == '\r') {
+			continue;
+		} else if ((parsing_ch == '\n') || (counter > CHUNK_SIZE)) {
+			if (parsing_ch == '\n') {
+				for (int i = counter; i < CHUNK_SIZE; i++) {
+					tapeCursor->cells[i] = '_';
+				}
+				tapeCursor->size = CHUNK_SIZE;
+			}
+			break;
+		}
+		counter++;
+
+		printf("- %c\n", parsing_ch);
+		if (tapeCursor == NULL) {
+			tapeCursor = malloc(sizeof(tapechunk));
+			tapeCursor->size = 0;
+			tapeCursor->next = NULL;
+			tapeCursor->prev = NULL;
+		}
+		tapeCursor->cells[counter] = parsing_ch;
+		tapeCursor->size++;
+	}
+}
+
+
 /* return values: 0 - not accepted | 1 - accepted | 2 - undefined */
+int simulate(state ***states, tapechunk **tape) {
+	int queueLength = 1;
+	int i;
+
+	state **statesCursor = *states;
+	tapechunk *tapeHead = *tape;
+
+	configuration *queue = malloc(sizeof(configuration));
+	configuration *queueCursor = queue;
+	configuration *queueTemp = queueCursor;
+	queue->stateID = 0;
+	queue->moves = 0;
+	queue->next = NULL;
+
+	loadTapeChunk(&tapeHead);
+
+	for (int i = 0; i < tapeHead->size; i++)
+		printf("tape [%d]: %c\n", i, tapeHead->cells[i]);
+
+	while (queueLength > 0) {
+		printf("%d\t(final: %d, moves: %ld, queue size: %d)\n", queueCursor->stateID, statesCursor[queueCursor->stateID]->final, queue->moves, queueLength);
+		
+		if (statesCursor[queueCursor->stateID]->final == true) {
+			//printf("finale\n");
+			return 1;
+		}
+		
+		for (i = 0; i < 8; i++) {
+			if (statesCursor[queueCursor->stateID]->keys[i] != NULL) {
+				queue->next = malloc(sizeof(configuration));
+				queue = queue->next;
+				queue->stateID = statesCursor[queueCursor->stateID]->keys[i]->endState;
+				queue->moves = queueCursor->moves + 1;
+				queue->next = NULL;
+				queueLength++;
+			}
+		}
+
+		queueTemp = queueCursor;
+		queueCursor = queueCursor->next;
+		free(queueTemp);
+		queueLength--;
+	}
+	return 0;
+}
 
 
 int main(int argc, char const *argv[]) {
 	#ifdef BENCH
-	clock_t begin = clock();
+		clock_t begin = clock();
 	#endif
 	
 	int statesSize;
@@ -103,7 +196,7 @@ int main(int argc, char const *argv[]) {
 	int parsing_state;
 	char parsing_ch;
 	char parsing_move;
-	char parsing_line[25];
+	char parsing_line[INPUT_BUFFER];
 	
 	int i;
 	
@@ -112,13 +205,14 @@ int main(int argc, char const *argv[]) {
 	input* cell = NULL;
 
 	state** states = malloc(statesSize * sizeof(state*));
+	tapechunk* tape = NULL;
 
 	for (i = 0; i < statesSize; i++) 
 		states[i] = NULL;
 
 	parsing_step = 0;
 	parsing_index = 0;
-	for (i = 0; i < 25; i++) 
+	for (i = 0; i < INPUT_BUFFER; i++) 
 		parsing_line[i] = (char) 0;
 
 	while ((parsing_ch = getc(stdin)) != EOF) {
@@ -159,22 +253,25 @@ int main(int argc, char const *argv[]) {
 					if (states[node->startState] == NULL) {
 						state* state_node = (state*) malloc(sizeof(state));
 						state_node->final = false;
-						state_node->transitions = NULL;
+						for (i = 0; i < 8; i++)
+							state_node->keys[i] = NULL;
 						states[node->startState] = state_node;
 					}
 
 					if (states[node->endState] == NULL) {
 						state* state_node = (state*) malloc(sizeof(state));
 						state_node->final = false;
-						state_node->transitions = NULL;
+						for (i = 0; i < 8; i++)
+							state_node->keys[i] = NULL;
 						states[node->endState] = state_node;
 					}
 
-					if ((states[node->startState])->transitions != NULL) {
-						node->next = (states[node->startState])->transitions;
-						(states[node->startState])->transitions = node;
+					int hash = node->inChar >> 5;
+					if ((states[node->startState])->keys[hash] != NULL) {
+						node->next = (states[node->startState])->keys[hash];
+						(states[node->startState])->keys[hash] = node;
 					} else {
-						(states[node->startState])->transitions = node;
+						(states[node->startState])->keys[hash] = node;
 					}
 
 
@@ -187,7 +284,8 @@ int main(int argc, char const *argv[]) {
 					if (states[parsing_state] == NULL) {
 						state* state_node = (state*) malloc(sizeof(state));
 						state_node->final = true;
-						state_node->transitions = NULL;
+						for (i = 0; i < 8; i++)
+							state_node->keys[i] = NULL;
 						states[parsing_state] = state_node;
 					} else {
 						states[parsing_state]->final = true;
@@ -205,35 +303,52 @@ int main(int argc, char const *argv[]) {
 				}
 			}
 			parsing_index = 0;
-			for (i = 0; i < 25; i++) 
+			for (i = 0; i < INPUT_BUFFER; i++) 
 				parsing_line[i] = (char) 0;
 		}
 	}
 
-	printf(">>> Riepilogo\n");
+	/*printf(">>> Riepilogo\n");
 	printf("- Max steps: %d\n", maxSteps);
 	printf("- States: %d\n", statesSize);
 
 	for (i = 0; i < statesSize; i++) {
 		if (states[i] != NULL) {
 			printf("- Stato #%d (%d)\n", i, states[i]->final);
-			if (states[i]->transitions != NULL) {
-				transition *transitionCursor = states[i]->transitions;
-				while (transitionCursor != NULL) {
-					printf("\t %d -> %d [%c|%c|%d]\n",
-							transitionCursor->startState,
-							transitionCursor->endState,
-							transitionCursor->inChar,
-							transitionCursor->outChar,
-							transitionCursor->move);
-					transitionCursor = transitionCursor->next;
+			int k;
+			for (k = 0; k < 8; k++) {
+				printf("\t Key: %d\n", k);
+				if (states[i]->keys[k] != NULL) {
+					transition *transitionCursor = states[i]->keys[k];
+					while (transitionCursor != NULL) {
+						printf("\t\t %d -> %d [%c|%c|%d]\n",
+								transitionCursor->startState,
+								transitionCursor->endState,
+								transitionCursor->inChar,
+								transitionCursor->outChar,
+								transitionCursor->move);
+						transitionCursor = transitionCursor->next;
+					}
 				}
 			}
 		}
 	}
-	printf("bbb\n");
+	printf("bbb\n");*/
 
-	/*while (lineToSkip > 0) {
+	/*int lineToSkip = 1;
+	while (lineToSkip > 0) {
+		while ((parsing_ch = getc(stdin)) != EOF) {
+			if (parsing_ch == '\n') {
+				break;
+			}
+		}
+		lineToSkip -= 1;
+	}*/
+
+	simulate(&states, &tape);
+
+	/*int lineToSkip = 7;
+	while (lineToSkip > 0) {
 		while ((parsing_ch = getc(stdin)) != EOF) {
 			if (parsing_ch == '\n') {
 				break;
@@ -243,9 +358,9 @@ int main(int argc, char const *argv[]) {
 	}*/
 	
 	#ifdef BENCH
-	clock_t end = clock();
-	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-	printf("%fs (%f)\n", time_spent, (double)(end - begin));
+		clock_t end = clock();
+		double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+		printf("%fs (%f)\n", time_spent, (double)(end - begin));
 	#endif
 	return 0;
 }

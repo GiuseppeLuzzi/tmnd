@@ -4,7 +4,7 @@
 
 #define BENCH
 #ifdef BENCH
-#include <time.h>
+	#include <time.h>
 #endif
 
 #define DEBUG
@@ -34,12 +34,6 @@ typedef struct _state {
 	transition *keys[8];
 } state;
 
-typedef struct _configuration {
-	int stateID;
-	long moves;
-	struct _configuration *next;
-} configuration;
-
 typedef struct _tapechunk {
 	int size;
 	char cells[CHUNK_SIZE];
@@ -47,11 +41,19 @@ typedef struct _tapechunk {
 	struct _tapechunk *next;
 } tapechunk;
 
+typedef struct _configuration {
+	int stateID;
+	long moves;
+	int chunkIndex;
+	tapechunk currentChunk;
+	struct _configuration *next;
+} configuration;
+
 
 char m2c(moveType move) {
 	if (move == MOVE_RIGHT) return 'R';
-	if (move == MOVE_LEFT) return 'L';
-	if (move == MOVE_STAY) return 'S';
+	if (move == MOVE_LEFT)  return 'L';
+	if (move == MOVE_STAY)  return 'S';
 	return '-';
 }
 
@@ -102,10 +104,38 @@ void freeNastro(input **headCell) {
 }
 
 void loadTapeChunk(tapechunk **tape) {
-	int counter = 0;
+	int counter;
 	char parsing_ch;
 	tapechunk *tapeCursor = NULL;
-	tapeCursor = *tape;
+
+	if (*tape != NULL) {
+		tapeCursor = *tape;
+		printf("tapenotnull;\n");
+		while (tapeCursor->next != NULL) 
+			tapeCursor = tapeCursor->next;
+
+		if (tapeCursor->size == CHUNK_SIZE) {
+			printf("tapefull;\n");
+			counter = 0;
+			tapeCursor->next = malloc(sizeof(tapechunk));
+			tapeCursor = tapeCursor->next;
+
+			tapeCursor->size = 0;
+			tapeCursor->next = NULL;
+			tapeCursor->prev = NULL;
+		} else {
+			printf("tapenotfull;\n");
+			counter = tapeCursor->size;
+		}
+	} else {
+		printf("tapenull;\n");
+		counter = 0;
+		*tape = malloc(sizeof(tapechunk));
+		tapeCursor = *tape;
+		tapeCursor->size = 0;
+		tapeCursor->next = NULL;
+		tapeCursor->prev = NULL;
+	}
 
 	while ((parsing_ch = getc(stdin)) != EOF) {
 		if (parsing_ch == '\r') {
@@ -119,18 +149,11 @@ void loadTapeChunk(tapechunk **tape) {
 			}
 			break;
 		}
-		counter++;
-
-		printf("- %c\n", parsing_ch);
-		if (tapeCursor == NULL) {
-			tapeCursor = malloc(sizeof(tapechunk));
-			tapeCursor->size = 0;
-			tapeCursor->next = NULL;
-			tapeCursor->prev = NULL;
-		}
 		tapeCursor->cells[counter] = parsing_ch;
 		tapeCursor->size++;
+		counter++;
 	}
+
 }
 
 
@@ -140,7 +163,9 @@ int simulate(state ***states, tapechunk **tape) {
 	int i;
 
 	state **statesCursor = *states;
-	tapechunk *tapeHead = *tape;
+	tapechunk *tapeCursor = *tape;
+
+	int chunk_index = 0;
 
 	configuration *queue = malloc(sizeof(configuration));
 	configuration *queueCursor = queue;
@@ -150,9 +175,8 @@ int simulate(state ***states, tapechunk **tape) {
 	queue->next = NULL;
 
 	loadTapeChunk(&tapeHead);
-
 	for (int i = 0; i < tapeHead->size; i++)
-		printf("tape [%d]: %c\n", i, tapeHead->cells[i]);
+		printf("tape [%d]:\t%c\n", i, tapeHead->cells[i]);
 
 	while (queueLength > 0) {
 		printf("%d\t(final: %d, moves: %ld, queue size: %d)\n", queueCursor->stateID, statesCursor[queueCursor->stateID]->final, queue->moves, queueLength);
@@ -162,16 +186,45 @@ int simulate(state ***states, tapechunk **tape) {
 			return 1;
 		}
 		
-		for (i = 0; i < 8; i++) {
-			if (statesCursor[queueCursor->stateID]->keys[i] != NULL) {
+		transitionCursor = (*states)[queueCursor->stateID]->keys[tapeCursor->cells[chunk_index] >> 5]
+
+		while (transitionCursor != NULL) {
+			if (transitionCursor->inChar == tapeCursor->cells[chunk_index]) {
 				queue->next = malloc(sizeof(configuration));
 				queue = queue->next;
-				queue->stateID = statesCursor[queueCursor->stateID]->keys[i]->endState;
+
+				queue->stateID = transitionCursor->endState;
 				queue->moves = queueCursor->moves + 1;
 				queue->next = NULL;
+
+				if (transitionCursor->inChar == transitionCursor->outChar) {
+					queue->currentChunk = tapeCursor;
+				} else {
+					queue->currentChunk = NULL;
+					tapechunk *tapeCopyCursor = *tape;
+					tapechunk *queueCopyCursor;
+					while (tapeCopyCursor->next != NULL) {
+						if (queue->currentChunk == NULL) {
+							queue->currentChunk = malloc(sizeof(tapechunk));
+							queue->currentChunk->size = tapeCopyCursor->size;
+							queue->currentChunk->cells = tapeCopyCursor->cells;
+							queueCopyCursor = queue->currentChunk;
+						} else {
+							queueCopyCursor->next = malloc(sizeof(tapechunk));
+							queueCopyCursor->prev
+							queueCopyCursor->size = tapeCopyCursor->size;
+							queueCopyCursor->cells = tapeCopyCursor->cells;
+
+						}
+					}
+				}
+
 				queueLength++;
 			}
+
+			transitionCursor = transitionCursor->next;
 		}
+
 
 		queueTemp = queueCursor;
 		queueCursor = queueCursor->next;

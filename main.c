@@ -14,12 +14,6 @@
 typedef enum {MOVE_RIGHT, MOVE_STAY, MOVE_LEFT} moveType;
 typedef enum {false, true} bool;
 
-typedef struct _input {
-	char value;
-	struct _input *prev;
-	struct _input *next;
-} input;
-
 typedef struct _transition {
 	int startState;
 	int endState;
@@ -34,21 +28,23 @@ typedef struct _state {
 	transition *keys[8];
 } state;
 
-typedef struct _tapechunk {
-	int size;
-	char cells[CHUNK_SIZE];
-	struct _tapechunk *prev;
-	struct _tapechunk *next;
-} tapechunk;
+typedef struct _tape {
+	int leftCounter;
+	int rightCounter;
+	int leftMaxSize;
+	int rightMaxSize;
+	char *left;
+	char *right;
+} tapeInfo;
 
 typedef struct _configuration {
 	int stateID;
 	long moves;
-	int chunkIndex;
-	tapechunk currentChunk;
+	int index;
+
+	tapeInfo tape;
 	struct _configuration *next;
 } configuration;
-
 
 char m2c(moveType move) {
 	if (move == MOVE_RIGHT) return 'R';
@@ -57,169 +53,155 @@ char m2c(moveType move) {
 	return '-';
 }
 
-bool loadInput(input **headCell) {
+void loadTape(tapeInfo *tape) {
 	char parsing_ch;
-	input *cellCursor = NULL;
-	while ((parsing_ch = getc(stdin)) != EOF) {
-		if (parsing_ch != '\n') {
-			if (*headCell == NULL) {
-				*headCell = malloc(sizeof(input));
-				cellCursor = *headCell;
-				cellCursor->prev = NULL;
- 			} else {
-				cellCursor->next = malloc(sizeof(input));
-				cellCursor->next->prev = cellCursor;
-				cellCursor = cellCursor->next;
-			}
-			cellCursor->value = parsing_ch;
-			cellCursor->next = NULL;
-		} else {
-			return true;
-		}
-	}
-	return false;
-}
 
-void printInput(input *cell) {
-	input *cellCursor = NULL;
-	cellCursor = cell;
-	while (cellCursor != NULL) {
-		printf(" %c |", cellCursor->value);
-		cellCursor = cellCursor->next;
-	}
-	printf("\n");
-}
-
-void freeNastro(input **headCell) {
-	input *cellCursor = NULL;
-	cellCursor = *headCell;
-
-	while (cellCursor->next != NULL) {
-		cellCursor = cellCursor->next;
-	}
-	while (cellCursor->prev != NULL) {
-		cellCursor = cellCursor->prev;
-		free(cellCursor->next);
-	}
-}
-
-void loadTapeChunk(tapechunk **tape) {
-	int counter;
-	char parsing_ch;
-	tapechunk *tapeCursor = NULL;
-
-	if (*tape != NULL) {
-		tapeCursor = *tape;
-		printf("tapenotnull;\n");
-		while (tapeCursor->next != NULL) 
-			tapeCursor = tapeCursor->next;
-
-		if (tapeCursor->size == CHUNK_SIZE) {
-			printf("tapefull;\n");
-			counter = 0;
-			tapeCursor->next = malloc(sizeof(tapechunk));
-			tapeCursor = tapeCursor->next;
-
-			tapeCursor->size = 0;
-			tapeCursor->next = NULL;
-			tapeCursor->prev = NULL;
-		} else {
-			printf("tapenotfull;\n");
-			counter = tapeCursor->size;
-		}
-	} else {
-		printf("tapenull;\n");
-		counter = 0;
-		*tape = malloc(sizeof(tapechunk));
-		tapeCursor = *tape;
-		tapeCursor->size = 0;
-		tapeCursor->next = NULL;
-		tapeCursor->prev = NULL;
-	}
+	tape->leftCounter = 0;
+	tape->leftMaxSize = 0;
+	tape->left = NULL;
+	tape->rightCounter = 0;
+	tape->rightMaxSize = 10;
+	tape->right = malloc(sizeof(char) * tape->rightMaxSize);
 
 	while ((parsing_ch = getc(stdin)) != EOF) {
 		if (parsing_ch == '\r') {
 			continue;
-		} else if ((parsing_ch == '\n') || (counter > CHUNK_SIZE)) {
-			if (parsing_ch == '\n') {
-				for (int i = counter; i < CHUNK_SIZE; i++) {
-					tapeCursor->cells[i] = '_';
-				}
-				tapeCursor->size = CHUNK_SIZE;
-			}
+		} else if (parsing_ch == '\n') {
 			break;
 		}
-		tapeCursor->cells[counter] = parsing_ch;
-		tapeCursor->size++;
-		counter++;
+		if (tape->rightCounter == tape->rightMaxSize) {
+			tape->rightMaxSize = tape->rightMaxSize * 2;
+			tape->right = realloc(tape->right, sizeof(char) * tape->rightMaxSize);
+			for (int i = tape->rightCounter; i < tape->rightMaxSize; i++) 
+				tape->right[i] = '_';
+		}
+		tape->right[tape->rightCounter] = parsing_ch;
+		tape->rightCounter = tape->rightCounter + 1;
 	}
-
 }
 
 
 /* return values: 0 - not accepted | 1 - accepted | 2 - undefined */
-int simulate(state ***states, tapechunk **tape) {
+int simulate(state ***states, int maxSteps) {
 	int queueLength = 1;
 	int i;
 
+	tapeInfo basicTape;
 	state **statesCursor = *states;
-	tapechunk *tapeCursor = *tape;
 
 	int chunk_index = 0;
 
-	configuration *queue = malloc(sizeof(configuration));
-	configuration *queueCursor = queue;
-	configuration *queueTemp = queueCursor;
+	loadTape(&basicTape);
+	for (int i = 0; i < basicTape.rightCounter; i++)
+		printf("tape right [%d]:\t%c\n", i, basicTape.right[i]);
+
+	configuration *queue = malloc(sizeof(configuration)); // Indica sempre la coda
+	configuration *queueCursor = queue; // Indica sempre la testa
+	configuration *queueTemp = NULL;
+
 	queue->stateID = 0;
 	queue->moves = 0;
+	queue->tape.leftCounter = basicTape.leftCounter;
+	queue->tape.rightCounter = basicTape.rightCounter;
+	queue->tape.leftMaxSize = basicTape.leftMaxSize;
+	queue->tape.rightMaxSize = basicTape.rightMaxSize;
+	if (basicTape.left == NULL) {
+		queue->tape.left = NULL;
+	} else {
+		queue->tape.left = malloc(sizeof(char) * queue->tape.leftMaxSize);
+	}
+	strncpy(queue->tape.left, basicTape.left, queue->tape.leftMaxSize);
+	queue->tape.right = malloc(sizeof(char) * queue->tape.rightMaxSize);
+	strncpy(queue->tape.right, basicTape.right, queue->tape.rightMaxSize);
+
 	queue->next = NULL;
-
-	loadTapeChunk(&tapeHead);
-	for (int i = 0; i < tapeHead->size; i++)
-		printf("tape [%d]:\t%c\n", i, tapeHead->cells[i]);
-
+	
 	while (queueLength > 0) {
 		printf("%d\t(final: %d, moves: %ld, queue size: %d)\n", queueCursor->stateID, statesCursor[queueCursor->stateID]->final, queue->moves, queueLength);
 		
-		if (statesCursor[queueCursor->stateID]->final == true) {
-			//printf("finale\n");
+		if (statesCursor[queueCursor->stateID]->final == true) 
 			return 1;
+
+		transition *transitionCursor = NULL;
+		if (queueCursor->index >= 0) {
+			transitionCursor = (*states)[queueCursor->stateID]->keys[queueCursor->tape.right[queueCursor->index] >> 5];
+		} else {
+			transitionCursor = (*states)[queueCursor->stateID]->keys[queueCursor->tape.left[queueCursor->tape.leftCounter + queueCursor->index] >> 5];
 		}
-		
-		transitionCursor = (*states)[queueCursor->stateID]->keys[tapeCursor->cells[chunk_index] >> 5]
 
 		while (transitionCursor != NULL) {
-			if (transitionCursor->inChar == tapeCursor->cells[chunk_index]) {
-				queue->next = malloc(sizeof(configuration));
-				queue = queue->next;
+			if (queueCursor->index >= 0) {
+				if (transitionCursor->inChar == queueCursor->tape.right[queueCursor->index]) {
+					queue->next = malloc(sizeof(configuration));
+					queue = queue->next;
 
-				queue->stateID = transitionCursor->endState;
-				queue->moves = queueCursor->moves + 1;
-				queue->next = NULL;
-
-				if (transitionCursor->inChar == transitionCursor->outChar) {
-					queue->currentChunk = tapeCursor;
-				} else {
-					queue->currentChunk = NULL;
-					tapechunk *tapeCopyCursor = *tape;
-					tapechunk *queueCopyCursor;
-					while (tapeCopyCursor->next != NULL) {
-						if (queue->currentChunk == NULL) {
-							queue->currentChunk = malloc(sizeof(tapechunk));
-							queue->currentChunk->size = tapeCopyCursor->size;
-							queue->currentChunk->cells = tapeCopyCursor->cells;
-							queueCopyCursor = queue->currentChunk;
+					queue->stateID = transitionCursor->endState;
+					queue->moves = queueCursor->moves + 1;
+					if (transitionCursor->inChar != transitionCursor->outChar) {
+						queue->tape.leftCounter = queueCursor->tape.leftCounter;
+						queue->tape.rightCounter = queueCursor->tape.rightCounter;
+						queue->tape.leftMaxSize = queueCursor->tape.leftMaxSize;
+						queue->tape.rightMaxSize = queueCursor->tape.rightMaxSize;
+						if (queueCursor->tape.left == NULL) {
+							queue->tape.left = NULL;
 						} else {
-							queueCopyCursor->next = malloc(sizeof(tapechunk));
-							queueCopyCursor->prev
-							queueCopyCursor->size = tapeCopyCursor->size;
-							queueCopyCursor->cells = tapeCopyCursor->cells;
-
+							queue->tape.left = malloc(sizeof(char) * queue->tape.leftMaxSize);
 						}
-					}
-				}
+						strncpy(queue->tape.left, queueCursor->tape.left, queue->tape.leftMaxSize);
+						queue->tape.right = malloc(sizeof(char) * queue->tape.rightMaxSize);
+						strncpy(queue->tape.right, queueCursor->tape.right, queue->tape.rightMaxSize);
 
-				queueLength++;
+						queue->tape.right[queueCursor->index] = transitionCursor->outChar;
+						if (transitionCursor->move == MOVE_RIGHT) {
+							queue->index = queueCursor->index + 1;
+						} else if (transitionCursor->move == MOVE_LEFT) {
+							queue->index = queueCursor->index - 1;
+						} else if (transitionCursor->move == MOVE_STAY) {
+							queue->index = queueCursor->index;
+						}
+					} else {
+						queue->tape = queueCursor->tape;
+					}
+					queue->next = NULL;
+
+					queueLength++;
+				}
+			} else {
+				if (transitionCursor->inChar == queueCursor->tape.left[queueCursor->tape.leftCounter + queueCursor->index]) {
+					queue->next = malloc(sizeof(configuration));
+					queue = queue->next;
+
+					queue->stateID = transitionCursor->endState;
+					queue->moves = queueCursor->moves + 1;
+					if (transitionCursor->inChar != transitionCursor->outChar) {
+						queue->tape.leftCounter = queueCursor->tape.leftCounter;
+						queue->tape.rightCounter = queueCursor->tape.rightCounter;
+						queue->tape.leftMaxSize = queueCursor->tape.leftMaxSize;
+						queue->tape.rightMaxSize = queueCursor->tape.rightMaxSize;
+						if (queueCursor->tape.left == NULL) {
+							queue->tape.left = NULL;
+						} else {
+							queue->tape.left = malloc(sizeof(char) * queue->tape.leftMaxSize);
+						}
+						strncpy(queue->tape.left, queueCursor->tape.left, queue->tape.leftMaxSize);
+						queue->tape.right = malloc(sizeof(char) * queue->tape.rightMaxSize);
+						strncpy(queue->tape.right, queueCursor->tape.right, queue->tape.rightMaxSize);
+
+						queue->tape.left[queueCursor->tape.leftCounter + queueCursor->index] = transitionCursor->outChar;
+						if (transitionCursor->move == MOVE_RIGHT) {
+							queue->index = queueCursor->index + 1;
+						} else if (transitionCursor->move == MOVE_LEFT) {
+							queue->index = queueCursor->index - 1;
+						} else if (transitionCursor->move == MOVE_STAY) {
+							queue->index = queueCursor->index;
+						}
+					} else {
+						queue->tape = queueCursor->tape;
+					}
+					queue->next = NULL;
+
+					queueLength++;
+				}
 			}
 
 			transitionCursor = transitionCursor->next;
@@ -231,6 +213,7 @@ int simulate(state ***states, tapechunk **tape) {
 		free(queueTemp);
 		queueLength--;
 	}
+
 	return 0;
 }
 
@@ -255,10 +238,8 @@ int main(int argc, char const *argv[]) {
 	
 	statesSize = 10;
 	lastStatesSize= 10;
-	input* cell = NULL;
 
-	state** states = malloc(statesSize * sizeof(state*));
-	tapechunk* tape = NULL;
+	state **states = malloc(statesSize * sizeof(state*));
 
 	for (i = 0; i < statesSize; i++) 
 		states[i] = NULL;
@@ -388,7 +369,7 @@ int main(int argc, char const *argv[]) {
 	}
 	printf("bbb\n");*/
 
-	/*int lineToSkip = 1;
+	int lineToSkip = 0;
 	while (lineToSkip > 0) {
 		while ((parsing_ch = getc(stdin)) != EOF) {
 			if (parsing_ch == '\n') {
@@ -396,9 +377,9 @@ int main(int argc, char const *argv[]) {
 			}
 		}
 		lineToSkip -= 1;
-	}*/
+	}
 
-	simulate(&states, &tape);
+	simulate(&states, maxSteps);
 
 	/*int lineToSkip = 7;
 	while (lineToSkip > 0) {

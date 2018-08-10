@@ -97,8 +97,9 @@ int simulate(state ***states, int maxSteps) {
 	state **statesCursor = *states;
 
 	eof = loadTape(&basicTape);
-	if (eof)
+	if (eof && basicTape.rightCounter == 0)
 		return eof;
+	
 	//for (int i = 0; i < basicTape.rightMaxSize; i++)
 	//	printf("tape right [%d]:\t%c\n", i, basicTape.right[i]);
 
@@ -146,7 +147,7 @@ int simulate(state ***states, int maxSteps) {
 			break;
 		} 
 
-		if (queueCursor->moves > maxSteps) {
+		if (queueCursor->moves >= maxSteps) {
 			mt_status = 2;
 
 			queueTemp = queueCursor;
@@ -283,6 +284,7 @@ int simulate(state ***states, int maxSteps) {
 		free(queueTemp);
 		queueLength--;
 	}
+	
 	if (mt_status == 2) {
 		printf("U\n");
 	} else {

@@ -132,10 +132,12 @@ int simulate(state ***states, int maxSteps) {
 	queue->next = NULL;
 	
 	while (queueLength > 0) {
+		
 		/*
 		printf("---\n");
 		for (int j = queue->tape.leftMaxSize; j > 0; j--)
 			printf(" %c", queue->tape.left[j]);
+		printf("||");
 		for (int j = 0; j < queue->tape.rightMaxSize; j++) 
 			printf(" %c", queue->tape.right[j]);
 		printf("\n");
@@ -181,12 +183,12 @@ int simulate(state ***states, int maxSteps) {
 					queueCursor->tape.left[i] = '_';
 			}
 
-			if (queueCursor->index >= queueCursor->tape.rightMaxSize) {
-				queueCursor->tape.rightMaxSize = queueCursor->index * 2;
-				queueCursor->tape.right = realloc(queueCursor->tape.right, sizeof(char) * queueCursor->tape.rightMaxSize);
+			if (abs(queueCursor->index) >= queueCursor->tape.leftMaxSize) {
+				queueCursor->tape.leftMaxSize = abs(queueCursor->index) * 2;
+				queueCursor->tape.left = realloc(queueCursor->tape.left, sizeof(char) * queueCursor->tape.leftMaxSize);
 				
-				for (int i = queueCursor->tape.rightCounter; i < queueCursor->tape.rightMaxSize; i++)
-					queueCursor->tape.right[i] = '_';
+				for (int i = queueCursor->tape.leftCounter; i < queueCursor->tape.leftMaxSize; i++)
+					queueCursor->tape.left[i] = '_';
 			}
 
 			transitionCursor = (*states)[queueCursor->stateID]->keys[queueCursor->tape.left[abs(queueCursor->tape.leftCounter + queueCursor->index) - 1] >> 5];
@@ -284,7 +286,7 @@ int simulate(state ***states, int maxSteps) {
 		free(queueTemp);
 		queueLength--;
 	}
-	
+
 	if (mt_status == 2) {
 		printf("U\n");
 	} else {
@@ -427,8 +429,8 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	/*
-	printf(">>> Riepilogo\n");
+	
+	/*printf(">>> Riepilogo\n");
 	printf("- Max steps: %d\n", maxSteps);
 	printf("- States: %d\n", statesSize);
 
@@ -453,11 +455,11 @@ int main(int argc, char const *argv[]) {
 			}
 		}
 	}
-	printf(">>> Esecuzione\n");
-	*/
+	printf(">>> Esecuzione\n");*/
 
 	
-	/*int lineToSkip = 0;
+	/*
+	int lineToSkip = 3;
 	while (lineToSkip > 0) {
 		while ((parsing_ch = getc(stdin)) != EOF) {
 			if (parsing_ch == '\n') {
@@ -465,7 +467,8 @@ int main(int argc, char const *argv[]) {
 			}
 		}
 		lineToSkip -= 1;
-	}*/
+	}
+	*/
 	
 	while(simulate(&states, maxSteps) != 1);
 

@@ -34,6 +34,7 @@ typedef struct _tape {
 	int rightMaxSize;
 	char *left;
 	char *right;
+	int reference_counter;
 } tapeInfo;
 
 typedef struct _configuration {
@@ -55,6 +56,7 @@ char m2c(moveType move) {
 int loadTape(tapeInfo *tape) {
 	char parsing_ch;
 
+	tape->reference_counter = 0;
 	tape->leftCounter = 0;
 	tape->leftMaxSize = 0;
 	tape->left = NULL;
@@ -110,6 +112,7 @@ int simulate(state ***states, int maxSteps) {
 	queue->stateID = 0;
 	queue->index = 0;
 	queue->moves = 0;
+	queue->tape.reference_counter = 0;
 	queue->tape.leftCounter = basicTape.leftCounter;
 	queue->tape.rightCounter = basicTape.rightCounter;
 	queue->tape.leftMaxSize = basicTape.leftMaxSize;
@@ -120,12 +123,10 @@ int simulate(state ***states, int maxSteps) {
 		queue->tape.left = malloc(sizeof(char) * queue->tape.leftMaxSize);
 		for (int i = 0; i < queue->tape.leftMaxSize; i++)
 			queue->tape.left[i] = '_';
-		//strncpy(queue->tape.left, basicTape.left, queue->tape.leftMaxSize);
 		for (i = 0; i < queue->tape.leftMaxSize; i++) 
 			queue->tape.left[i] = basicTape.left[i];
 	}
 	queue->tape.right = malloc(sizeof(char) * queue->tape.rightMaxSize);
-	//strncpy(queue->tape.right, basicTape.right, queue->tape.rightMaxSize);
 	for (i = 0; i < queue->tape.rightMaxSize; i++) 
 			queue->tape.right[i] = basicTape.right[i];
 
@@ -211,12 +212,10 @@ int simulate(state ***states, int maxSteps) {
 							queue->tape.left = NULL;
 						} else {
 							queue->tape.left = malloc(sizeof(char) * queue->tape.leftMaxSize);
-							//strncpy(queue->tape.left, queueCursor->tape.left, queue->tape.leftMaxSize);
 							for (i = 0; i < queue->tape.leftMaxSize; i++) 
 								queue->tape.left[i] = queueCursor->tape.left[i];
 						}
 						queue->tape.right = malloc(sizeof(char) * queue->tape.rightMaxSize);
-						//strncpy(queue->tape.right, queueCursor->tape.right, queue->tape.rightMaxSize);
 						for (i = 0; i < queue->tape.rightMaxSize; i++) 
 								queue->tape.right[i] = queueCursor->tape.right[i];
 
@@ -250,12 +249,10 @@ int simulate(state ***states, int maxSteps) {
 							queue->tape.left = NULL;
 						} else {
 							queue->tape.left = malloc(sizeof(char) * queue->tape.leftMaxSize);
-							//strncpy(queue->tape.left, queueCursor->tape.left, queue->tape.leftMaxSize);
 							for (i = 0; i < queue->tape.leftMaxSize; i++) 
 								queue->tape.left[i] = queueCursor->tape.left[i];
 						}
 						queue->tape.right = malloc(sizeof(char) * queue->tape.rightMaxSize);
-						//strncpy(queue->tape.right, queueCursor->tape.right, queue->tape.rightMaxSize);
 						for (i = 0; i < queue->tape.rightMaxSize; i++) 
 								queue->tape.right[i] = queueCursor->tape.right[i];
 
@@ -296,10 +293,6 @@ int simulate(state ***states, int maxSteps) {
 	free(basicTape.right);
 	if (basicTape.left != NULL)
 		free(basicTape.left);
-	/*if (queueCursor->tape.left != NULL)
-		free(queueCursor->tape.left);
-	free(queueCursor->tape.right);
-	free(queueCursor);*/
 
 	return eof;
 }

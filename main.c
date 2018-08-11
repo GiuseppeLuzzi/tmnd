@@ -211,7 +211,7 @@ int simulate(state ***states, int maxSteps) {
 			queue->tape.leftMaxSize = queueCursor->tape.leftMaxSize;
 			queue->tape.rightMaxSize = queueCursor->tape.rightMaxSize;
 
-			if ((*states)[queueCursor->stateID]->tr_counter[transitionCursor->inChar] > 1) {
+			//if ((*states)[queueCursor->stateID]->tr_counter[transitionCursor->inChar] > 1) {
 				if (queueCursor->tape.left == NULL) {
 					queue->tape.left = NULL;
 				} else {
@@ -223,12 +223,12 @@ int simulate(state ***states, int maxSteps) {
 				for (i = 0; i < queue->tape.rightMaxSize; i++) 
 					queue->tape.right[i] = queueCursor->tape.right[i];
 				queue->tape.reference_counter = 0;
-			} else {
+			/*} else {
 				queueCursor->tape.reference_counter++;
 				queue->tape.left = queueCursor->tape.left;
 				queue->tape.right = queueCursor->tape.right;
 				queue->tape.reference_counter = queueCursor->tape.reference_counter;
-			}
+			}*/
 
 			if (queue->index >= 0) {
 				if (transitionCursor->inChar == queue->tape.right[queue->index])
@@ -444,8 +444,8 @@ int main(int argc, char const *argv[]) {
 	
 
 	
-	/*
-	int lineToSkip = 3;
+	
+	int lineToSkip = 7;
 	while (lineToSkip > 0) {
 		while ((parsing_ch = getc(stdin)) != EOF) {
 			if (parsing_ch == '\n') {
@@ -454,8 +454,8 @@ int main(int argc, char const *argv[]) {
 		}
 		lineToSkip -= 1;
 	}
-	*/
 	
+
 	while(simulate(&states, maxSteps) != 1);
 
 	/*int lineToSkip = 7;

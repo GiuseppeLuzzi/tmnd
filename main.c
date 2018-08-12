@@ -40,9 +40,8 @@ typedef struct _tape {
 
 typedef struct _configuration {
 	int stateID;
-	unsigned int moves;
+	long moves;
 	int index;
-
 	tapeInfo *tape;
 	struct _configuration *next;
 } configuration;
@@ -62,7 +61,7 @@ int loadTape(tapeInfo **tapeP) {
 	tape->leftMaxSize = 0;
 	tape->left = NULL;
 	tape->rightCounter = 0;
-	tape->rightMaxSize = 10;
+	tape->rightMaxSize = 64;
 	tape->right = malloc(sizeof(char) * tape->rightMaxSize);
 
 	for (int i = 0; i < tape->rightMaxSize; i++)
@@ -90,7 +89,7 @@ int loadTape(tapeInfo **tapeP) {
 
 
 /* return values: 0 - not accepted | 1 - accepted | 2 - undefined */
-int simulate(state ***states, int maxSteps) {
+int simulate(state ***states, long maxSteps) {
 	int queueLength = 1;
 	int eof = 0;
 	int i;
@@ -184,14 +183,14 @@ int simulate(state ***states, int maxSteps) {
 			transitionCursor = (*states)[queueCursor->stateID]->keys[queueCursor->tape->right[queueCursor->index] >> 5];
 		} else {
 			if (queueCursor->tape->left == NULL) {
-				queueCursor->tape->leftMaxSize = 10;
+				queueCursor->tape->leftMaxSize = 64;
 				queueCursor->tape->left = malloc(sizeof(char) * queueCursor->tape->leftMaxSize);
 				for (int i = 0; i < queueCursor->tape->leftMaxSize; i++)
 					queueCursor->tape->left[i] = '_';
 			}
 
 			if (abs(queueCursor->index) >= queueCursor->tape->leftMaxSize) {
-				queueCursor->tape->leftMaxSize = abs(queueCursor->index) * 2;
+				queueCursor->tape->leftMaxSize = queueCursor->tape->leftMaxSize * 2;
 				queueCursor->tape->left = realloc(queueCursor->tape->left, sizeof(char) * queueCursor->tape->leftMaxSize);
 				
 				for (int i = queueCursor->tape->leftCounter; i < queueCursor->tape->leftMaxSize; i++)
@@ -330,7 +329,7 @@ int main(int argc, char const *argv[]) {
 	
 	int statesSize;
 	int lastStatesSize;
-	int maxSteps;
+	long maxSteps;
 
 	int parsing_step;
 	int parsing_index;
@@ -341,8 +340,8 @@ int main(int argc, char const *argv[]) {
 	
 	int i;
 	
-	statesSize = 10;
-	lastStatesSize= 10;
+	statesSize = 256;
+	lastStatesSize= 256;
 
 	state **states = malloc(statesSize * sizeof(state*));
 
@@ -443,7 +442,7 @@ int main(int argc, char const *argv[]) {
 					parsing_step = 3;
 				}
 			} else if (parsing_step == 3) {
-				if (sscanf(parsing_line, "%d", &maxSteps) == 1) {
+				if (sscanf(parsing_line, "%ld", &maxSteps) == 1) {
 					/*printf(">>> Max steps: %d\n", maxSteps);*/
 				} else if (strcmp(parsing_line, "run") == 0) {
 					parsing_step = 4;

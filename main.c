@@ -8,7 +8,6 @@
 
 #define DEBUG
 #define INPUT_BUFFER 18
-#define CHUNK_SIZE 15
 
 typedef enum {MOVE_RIGHT, MOVE_STAY, MOVE_LEFT} moveType;
 typedef enum {false, true} bool;
@@ -25,7 +24,6 @@ typedef struct _transition {
 typedef struct _state {
 	bool final;
 	transition *keys[256];
-	int tr_counter[256];
 } state;
 
 typedef struct _tape {
@@ -224,7 +222,7 @@ int simulate(state ***states, long maxSteps) {
 				}
 			}
 
-			if ((*states)[queueCursor->stateID]->tr_counter[transitionCursor->inChar] == 1) {
+			if ((*states)[queueCursor->stateID]->keys[transitionCursor->inChar] != NULL && (*states)[queueCursor->stateID]->keys[transitionCursor->inChar]->next == NULL) {
 				// Se è uno stato pozzo, siamo già in U per quel ramo.
 				if (transitionCursor->inChar == transitionCursor->outChar &&
 					transitionCursor->move == MOVE_STAY &&
@@ -250,33 +248,35 @@ int simulate(state ***states, long maxSteps) {
 			queue->index = queueCursor->index;
 			queue->moves = queueCursor->moves + 1;
 
-			if ((*states)[queueCursor->stateID]->tr_counter[transitionCursor->inChar] > 1) {
-				localQueueCounter = 0;
-				if (queueCursor->tape->reference_counter > 0)
-					queueCursor->tape->reference_counter--;
-				
-				queue->tape = malloc(sizeof(tapeInfo));
-				queue->tape->leftCounter = queueCursor->tape->leftCounter;
-				queue->tape->rightCounter = queueCursor->tape->rightCounter;
-				queue->tape->leftMaxSize = queueCursor->tape->leftMaxSize;
-				queue->tape->rightMaxSize = queueCursor->tape->rightMaxSize;
+			if ((*states)[queueCursor->stateID]->keys[transitionCursor->inChar] != NULL) {
+				if ((*states)[queueCursor->stateID]->keys[transitionCursor->inChar]->next != NULL) {
+					localQueueCounter = 0;
+					if (queueCursor->tape->reference_counter > 0)
+						queueCursor->tape->reference_counter--;
+					
+					queue->tape = malloc(sizeof(tapeInfo));
+					queue->tape->leftCounter = queueCursor->tape->leftCounter;
+					queue->tape->rightCounter = queueCursor->tape->rightCounter;
+					queue->tape->leftMaxSize = queueCursor->tape->leftMaxSize;
+					queue->tape->rightMaxSize = queueCursor->tape->rightMaxSize;
 
-				if (queueCursor->tape->left == NULL) {
-					queue->tape->left = NULL;
+					if (queueCursor->tape->left == NULL) {
+						queue->tape->left = NULL;
+					} else {
+						queue->tape->left = malloc(sizeof(char) * queue->tape->leftMaxSize);
+						for (i = 0; i < queue->tape->leftMaxSize; i++) 
+							queue->tape->left[i] = queueCursor->tape->left[i];
+					}
+
+					queue->tape->right = malloc(sizeof(char) * queue->tape->rightMaxSize);
+					for (i = 0; i < queue->tape->rightMaxSize; i++) 
+						queue->tape->right[i] = queueCursor->tape->right[i];
+					queue->tape->reference_counter = 0;
 				} else {
-					queue->tape->left = malloc(sizeof(char) * queue->tape->leftMaxSize);
-					for (i = 0; i < queue->tape->leftMaxSize; i++) 
-						queue->tape->left[i] = queueCursor->tape->left[i];
+					deterministic = true;
+					queueCursor->tape->reference_counter++;
+					queue->tape = queueCursor->tape;
 				}
-
-				queue->tape->right = malloc(sizeof(char) * queue->tape->rightMaxSize);
-				for (i = 0; i < queue->tape->rightMaxSize; i++) 
-					queue->tape->right[i] = queueCursor->tape->right[i];
-				queue->tape->reference_counter = 0;
-			} else if ((*states)[queueCursor->stateID]->tr_counter[transitionCursor->inChar] == 1) {
-				deterministic = true;
-				queueCursor->tape->reference_counter++;
-				queue->tape = queueCursor->tape;
 			}
 
 			if (queue->index >= 0) {
@@ -415,8 +415,8 @@ int main(int argc, char const *argv[]) {
 						state_node->final = false;
 						for (i = 0; i < 256; i++)
 							state_node->keys[i] = NULL;
-						for (i = 0; i < 256; i++)
-							state_node->tr_counter[i] = 0;
+						//for (i = 0; i < 256; i++)
+						//	state_node->tr_counter[i] = 0;
 						states[node->startState] = state_node;
 					}
 
@@ -425,8 +425,8 @@ int main(int argc, char const *argv[]) {
 						state_node->final = false;
 						for (i = 0; i < 256; i++)
 							state_node->keys[i] = NULL;
-						for (i = 0; i < 256; i++)
-							state_node->tr_counter[i] = 0;
+						//for (i = 0; i < 256; i++)
+						//	state_node->tr_counter[i] = 0;
 						states[node->endState] = state_node;
 					}
 
@@ -438,7 +438,7 @@ int main(int argc, char const *argv[]) {
 					}
 
 					/* Conto per ogni carattere quante transizioni ci sono */
-					states[node->startState]->tr_counter[node->inChar]++;
+					//states[node->startState]->tr_counter[node->inChar]++;
 
 				} else if (strcmp(parsing_line, "acc") == 0) {
 					free(node);
@@ -451,8 +451,8 @@ int main(int argc, char const *argv[]) {
 						state_node->final = true;
 						for (i = 0; i < 256; i++)
 							state_node->keys[i] = NULL;
-						for (i = 0; i < 256; i++)
-							state_node->tr_counter[i] = 0;
+						//for (i = 0; i < 256; i++)
+						//	state_node->tr_counter[i] = 0;
 
 						states[parsing_state] = state_node;
 					} else {

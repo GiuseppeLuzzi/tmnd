@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define RIGHT_MIN_SIZE 64
+#define LEFT_MIN_SIZE 64
 #define ACCEPTING_STATES_MIN_SIZE 10
 #define STATES_HASHMAP 16
 #define INPUT_BUFFER 18
@@ -44,7 +46,7 @@ int loadTape(tapeInfo **tapeP) {
 	tape->leftMaxSize = 0;
 	tape->left = NULL;
 	tape->rightCounter = 0;
-	tape->rightMaxSize = 64;
+	tape->rightMaxSize = RIGHT_MIN_SIZE;
 	tape->right = malloc(sizeof(char) * tape->rightMaxSize);
 
 	for (int i = 0; i < tape->rightMaxSize; i++)
@@ -57,7 +59,7 @@ int loadTape(tapeInfo **tapeP) {
 			break;
 		}
 		if (tape->rightCounter == tape->rightMaxSize) {
-			tape->rightMaxSize = tape->rightMaxSize + 2;
+			tape->rightMaxSize = tape->rightMaxSize * 2;
 			tape->right = realloc(tape->right, sizeof(char) * tape->rightMaxSize);
 			for (int i = tape->rightCounter; i < tape->rightMaxSize; i++)
 				tape->right[i] = '_';
@@ -164,7 +166,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 			queueLength--;
 			continue;
 		}
-		//printf("b\n");
+		//printf("b %ld\n", queueCursor->moves);
 
 		transition *transitionCursor = NULL;
 		transition *transitionTemp = NULL;
@@ -174,38 +176,46 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 			//printf("position: %c (%d) | index: %d\n", queueCursor->tape->right[queueCursor->index], queueCursor->tape->right[queueCursor->index], queueCursor->index);
 			//printf("rightMaxSize: %d | counter: %d\n", queueCursor->tape->rightMaxSize, queueCursor->tape->rightCounter);
 			if (queueCursor->index >= queueCursor->tape->rightMaxSize) {
-				queueCursor->tape->rightMaxSize = queueCursor->index + 2;
+				queueCursor->tape->rightMaxSize = queueCursor->index * 2;
 				queueCursor->tape->right = realloc(queueCursor->tape->right, sizeof(char) * queueCursor->tape->rightMaxSize);
 				
 				for (int i = queueCursor->tape->rightCounter; i < queueCursor->tape->rightMaxSize; i++)
 					queueCursor->tape->right[i] = '_';
 			}
 			currentChar = queueCursor->tape->right[queueCursor->index];
-			transitionCursor = chars[queueCursor->tape->right[queueCursor->index] - 48][queueCursor->stateID % STATES_HASHMAP];
+			if (chars[queueCursor->tape->right[queueCursor->index] - 48] == NULL) {
+				transitionCursor = NULL;
+			} else {
+				transitionCursor = chars[queueCursor->tape->right[queueCursor->index] - 48][queueCursor->stateID % STATES_HASHMAP];
+			}
 		} else {
 			if (queueCursor->tape->left == NULL) {
-				queueCursor->tape->leftMaxSize = 64;
+				queueCursor->tape->leftMaxSize = LEFT_MIN_SIZE;
 				queueCursor->tape->left = malloc(sizeof(char) * queueCursor->tape->leftMaxSize);
 				for (int i = 0; i < queueCursor->tape->leftMaxSize; i++)
 					queueCursor->tape->left[i] = '_';
 			}
 
 			if (abs(queueCursor->index) >= queueCursor->tape->leftMaxSize) {
-				queueCursor->tape->leftMaxSize = abs(queueCursor->index) + 2;
+				queueCursor->tape->leftMaxSize = abs(queueCursor->index) * 2;
 				queueCursor->tape->left = realloc(queueCursor->tape->left, sizeof(char) * queueCursor->tape->leftMaxSize);
 				
 				for (int i = queueCursor->tape->leftCounter; i < queueCursor->tape->leftMaxSize; i++)
 					queueCursor->tape->left[i] = '_';
 			}
 			currentChar = queueCursor->tape->left[abs(queueCursor->tape->leftCounter + queueCursor->index) - 1];
-			transitionCursor = chars[queueCursor->tape->left[abs(queueCursor->tape->leftCounter + queueCursor->index) - 1] - 48][queueCursor->stateID % STATES_HASHMAP];
+			if (chars[queueCursor->tape->left[abs(queueCursor->tape->leftCounter + queueCursor->index) - 1] - 48] == NULL) {
+				transitionCursor = NULL;
+			} else {
+				transitionCursor = chars[queueCursor->tape->left[abs(queueCursor->tape->leftCounter + queueCursor->index) - 1] - 48][queueCursor->stateID % STATES_HASHMAP];
+			}
 		}
 		transitionCounter = 0;
 		transitionTemp = transitionCursor;
 		//printf("c\n");
 
 		while (transitionTemp != NULL) {
-			//printf("TS: %d, QS: %d, TC: %c, CC: %c\n", transitionTemp->startState, queueCursor->stateID, transitionTemp->inChar, currentChar);
+			//printf("TS: %d, QS: %d, TC: %c, CC: %c", transitionTemp->startState, queueCursor->stateID, transitionTemp->inChar, currentChar);
 			if (transitionTemp->startState == queueCursor->stateID && transitionTemp->inChar == currentChar) {
 				transitionCounter++;
 			}
@@ -249,7 +259,8 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 					free(queueTemp->tape);
 					free(queueTemp);
 					queueLength--;
-					continue;
+					to_exit = true;
+					break;
 				}
 			}
 			//printf("g\n");
@@ -259,8 +270,9 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 			queue->stateID = transitionCursor->endState;
 			queue->index = queueCursor->index;
 			queue->moves = queueCursor->moves + 1;
-
+			//printf("h\n");
 			if (transitionCounter > 1) {
+				//printf("h1\n");
 				localQueueCounter = 0;
 				if (queueCursor->tape->reference_counter > 0)
 					queueCursor->tape->reference_counter--;
@@ -284,11 +296,12 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 					queue->tape->right[i] = queueCursor->tape->right[i];
 				queue->tape->reference_counter = 0;
 			} else if (transitionCounter == 1) {
+				//printf("h2\n");
 				deterministic = true;
 				queueCursor->tape->reference_counter++;
 				queue->tape = queueCursor->tape;
 			}
-
+			//printf("i\n");
 			if (queue->index >= 0) {
 				if (transitionCursor->inChar == queue->tape->right[queue->index])
 					queue->tape->right[queue->index] = transitionCursor->outChar;
@@ -296,7 +309,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 				if (transitionCursor->inChar == queue->tape->left[abs(queue->tape->leftCounter + queue->index) - 1])
 					queue->tape->left[abs(queue->tape->leftCounter + queue->index) - 1] = transitionCursor->outChar;
 			}
-
+			//printf("l\n");
 			if (transitionCursor->move == MOVE_RIGHT) {
 				queue->index = queue->index + 1;
 			} else if (transitionCursor->move == MOVE_LEFT) {
@@ -304,6 +317,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 			} else if (transitionCursor->move == MOVE_STAY) {
 				queue->index = queue->index;
 			}
+			//printf("m\n");
 
 			queue->next = NULL;
 			localQueueCounter++;
@@ -311,7 +325,10 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 
 			transitionCursor = transitionCursor->next;
 		}
+		if (to_exit)
+			continue;
 
+		//printf("o\n");
 		queueTemp = queueCursor;
 		queueCursor = queueCursor->next;
 		//if (queueTemp->tape->reference_counter > 0)
@@ -448,6 +465,7 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
+	
 	/*printf(">> Riepilogo\n");
 	for(i = 0; i < 76; i++) {
 		if (chars[i] == NULL) continue;
@@ -472,8 +490,9 @@ int main(int argc, char const *argv[]) {
 	for (i = 0; i < acceptingCounter; i++) {
 		printf("\t\t- %d\n", acceptingState[i]);
 	}*/
+	
 
-	/*int lineToSkip = 2;
+	/*int lineToSkip = 0;
 	while (lineToSkip > 0) {
 		while ((parsing_ch = getc(stdin)) != EOF) {
 			if (parsing_ch == '\n') {
@@ -481,8 +500,8 @@ int main(int argc, char const *argv[]) {
 			}
 		}
 		lineToSkip -= 1;
-	}*/
-	//simulate(chars, maxSteps, &acceptingState, acceptingCounter);
+	}
+	simulate(chars, maxSteps, &acceptingState, acceptingCounter);*/
 	while(simulate(chars, maxSteps, &acceptingState, acceptingCounter) != 1);
 
 	free(acceptingState);

@@ -79,7 +79,6 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 	int i;
 	int mt_status = 0;
 	int transitionCounter = 0;
-	bool deterministic = false;
 	bool to_exit = false;
 
 	tapeInfo *basicTape = malloc(sizeof(tapeInfo));
@@ -99,7 +98,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 	//	printf("tape right [%d]:\t%c\n", i, basicTape->right[i]);
 
 	configuration *queue = malloc(sizeof(configuration)); // Indica sempre la coda
-	configuration *queueCursor = queue; // Indica sempre la testa
+	configuration *queueHead = queue; // Indica sempre la testa
 	configuration *queueTemp = NULL;
 
 	queue->stateID = 0;
@@ -122,23 +121,23 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 	while (queueLength > 0) {
 		
 		//printf("---\n");
-		//for (int j = queueCursor->tape->leftMaxSize; j > 0; j--)
-		//	printf(" %c", queueCursor->tape->left[j]);
+		//for (int j = queueHead->tape->leftMaxSize; j > 0; j--)
+		//	printf(" %c", queueHead->tape->left[j]);
 		//printf("||");
-		//for (int j = 0; j < queueCursor->tape->rightMaxSize; j++) 
-		//	printf(" %c", queueCursor->tape->right[j]);
+		//for (int j = 0; j < queueHead->tape->rightMaxSize; j++) 
+		//	printf(" %c", queueHead->tape->right[j]);
 		//printf("\n");
-		//printf("%d\t (moves: %ld, queue size: %d)\n", queueCursor->stateID, queueCursor->moves, queueLength);
+		//printf("%d\t (moves: %ld, queue size: %d)\n", queueHead->stateID, queueHead->moves, queueLength);
 		
 
 		to_exit = false;
 		for (i = 0; i < acceptingCounter; i++) {
-			if (queueCursor->stateID == acceptingState[i]) {
+			if (queueHead->stateID == acceptingState[i]) {
 				mt_status = 1;
 
-				while (queueCursor != NULL) {
-					queueTemp = queueCursor;
-					queueCursor = queueCursor->next;
+				while (queueHead != NULL) {
+					queueTemp = queueHead;
+					queueHead = queueHead->next;
 					if (queueTemp->tape->left != NULL)
 						free(queueTemp->tape->left);
 					free(queueTemp->tape->right);
@@ -154,60 +153,63 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 		if (to_exit) break;
 		//printf("a\n");
 
-		if (queueCursor->moves >= maxSteps) {
+		if (queueHead->moves >= maxSteps) {
 			mt_status = 2;
 
-			queueTemp = queueCursor;
-			queueCursor = queueCursor->next;
-			free(queueTemp->tape->left);
+			queueTemp = queueHead;
+			queueHead = queueHead->next;
+			if (queueTemp->tape->left != NULL)
+				free(queueTemp->tape->left);
 			free(queueTemp->tape->right);
 			free(queueTemp->tape);
 			free(queueTemp);
 			queueLength--;
 			continue;
 		}
-		//printf("b %ld\n", queueCursor->moves);
+		//printf("b %ld\n", queueHead->moves);
 
 		transition *transitionCursor = NULL;
 		transition *transitionTemp = NULL;
 		char currentChar = 0;
 
-		if (queueCursor->index >= 0) {
-			//printf("position: %c (%d) | index: %d\n", queueCursor->tape->right[queueCursor->index], queueCursor->tape->right[queueCursor->index], queueCursor->index);
-			//printf("rightMaxSize: %d | counter: %d\n", queueCursor->tape->rightMaxSize, queueCursor->tape->rightCounter);
-			if (queueCursor->index >= queueCursor->tape->rightMaxSize) {
-				queueCursor->tape->rightMaxSize = queueCursor->index * 2;
-				queueCursor->tape->right = realloc(queueCursor->tape->right, sizeof(char) * queueCursor->tape->rightMaxSize);
+		if (queueHead->index >= 0) {
+			//printf("position: %c (%d) | index: %d\n", queueHead->tape->right[queueHead->index], queueHead->tape->right[queueHead->index], queueHead->index);
+			//printf("rightMaxSize: %d | counter: %d\n", queueHead->tape->rightMaxSize, queueHead->tape->rightCounter);
+			if (queueHead->index >= queueHead->tape->rightMaxSize) {
+				queueHead->tape->rightMaxSize = queueHead->tape->rightMaxSize * 2;
+				queueHead->tape->right = realloc(queueHead->tape->right, sizeof(char) * queueHead->tape->rightMaxSize);
 				
-				for (int i = queueCursor->tape->rightCounter; i < queueCursor->tape->rightMaxSize; i++)
-					queueCursor->tape->right[i] = '_';
-			}
-			currentChar = queueCursor->tape->right[queueCursor->index];
-			if (chars[queueCursor->tape->right[queueCursor->index] - 48] == NULL) {
-				transitionCursor = NULL;
-			} else {
-				transitionCursor = chars[queueCursor->tape->right[queueCursor->index] - 48][queueCursor->stateID % STATES_HASHMAP];
-			}
-		} else {
-			if (queueCursor->tape->left == NULL) {
-				queueCursor->tape->leftMaxSize = LEFT_MIN_SIZE;
-				queueCursor->tape->left = malloc(sizeof(char) * queueCursor->tape->leftMaxSize);
-				for (int i = 0; i < queueCursor->tape->leftMaxSize; i++)
-					queueCursor->tape->left[i] = '_';
+				for (int i = queueHead->tape->rightCounter; i < queueHead->tape->rightMaxSize; i++)
+					queueHead->tape->right[i] = '_';
 			}
 
-			if (abs(queueCursor->index) >= queueCursor->tape->leftMaxSize) {
-				queueCursor->tape->leftMaxSize = abs(queueCursor->index) * 2;
-				queueCursor->tape->left = realloc(queueCursor->tape->left, sizeof(char) * queueCursor->tape->leftMaxSize);
-				
-				for (int i = queueCursor->tape->leftCounter; i < queueCursor->tape->leftMaxSize; i++)
-					queueCursor->tape->left[i] = '_';
-			}
-			currentChar = queueCursor->tape->left[abs(queueCursor->tape->leftCounter + queueCursor->index) - 1];
-			if (chars[queueCursor->tape->left[abs(queueCursor->tape->leftCounter + queueCursor->index) - 1] - 48] == NULL) {
+			currentChar = queueHead->tape->right[queueHead->index];
+			if (chars[currentChar - 48] == NULL) {
 				transitionCursor = NULL;
 			} else {
-				transitionCursor = chars[queueCursor->tape->left[abs(queueCursor->tape->leftCounter + queueCursor->index) - 1] - 48][queueCursor->stateID % STATES_HASHMAP];
+				transitionCursor = chars[currentChar - 48][queueHead->stateID % STATES_HASHMAP];
+			}
+		} else {
+			if (queueHead->tape->left == NULL) {
+				queueHead->tape->leftMaxSize = LEFT_MIN_SIZE;
+				queueHead->tape->left = malloc(sizeof(char) * queueHead->tape->leftMaxSize);
+				for (int i = 0; i < queueHead->tape->leftMaxSize; i++)
+					queueHead->tape->left[i] = '_';
+			}
+
+			if (abs(queueHead->index) >= queueHead->tape->leftMaxSize) {
+				queueHead->tape->leftMaxSize = queueHead->tape->leftMaxSize * 2;
+				queueHead->tape->left = realloc(queueHead->tape->left, sizeof(char) * queueHead->tape->leftMaxSize);
+				
+				for (int i = queueHead->tape->leftCounter; i < queueHead->tape->leftMaxSize; i++)
+					queueHead->tape->left[i] = '_';
+			}
+
+			currentChar = queueHead->tape->left[abs(queueHead->index) - 1];
+			if (chars[currentChar - 48] == NULL) {
+				transitionCursor = NULL;
+			} else {
+				transitionCursor = chars[currentChar - 48][queueHead->stateID % STATES_HASHMAP];
 			}
 		}
 		transitionCounter = 0;
@@ -215,99 +217,89 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 		//printf("c\n");
 
 		while (transitionTemp != NULL) {
-			//printf("TS: %d, QS: %d, TC: %c, CC: %c", transitionTemp->startState, queueCursor->stateID, transitionTemp->inChar, currentChar);
-			if (transitionTemp->startState == queueCursor->stateID && transitionTemp->inChar == currentChar) {
+			//printf("TS: %d, QS: %d, TC: %c, CC: %c", transitionTemp->startState, queueHead->stateID, transitionTemp->inChar, currentChar);
+			if (transitionTemp->startState == queueHead->stateID && transitionTemp->inChar == currentChar) {
 				transitionCounter++;
 			}
 			transitionTemp = transitionTemp->next;
 		}
 
 		//printf("d %d\n",transitionCounter);
-		deterministic = false;
 		localQueueCounter = 0;
-		while (transitionCursor != NULL) {
-			if (transitionCursor->startState != queueCursor->stateID) {
+		while (transitionCounter > 0 && transitionCursor != NULL) {
+			if ((transitionCursor->startState != queueHead->stateID) || (transitionCursor->inChar != currentChar)) {
 				transitionCursor = transitionCursor->next;
 				continue;
 			}
-			//printf("e\n");
-			if (queueCursor->index >= 0) {
-				if (transitionCursor->inChar != queueCursor->tape->right[queueCursor->index]) {
-					transitionCursor = transitionCursor->next;
-					continue;
-				}
-			} else {
-				if (transitionCursor->inChar != queueCursor->tape->left[abs(queueCursor->tape->leftCounter + queueCursor->index) - 1]) {
-					transitionCursor = transitionCursor->next;
-					continue;
-				}
-			}
+
 			//printf("f\n");
 			if (transitionCounter == 1) {
 				//printf("è deter, pozzo?\n");
 				// Se è uno stato pozzo, siamo già in U per quel ramo.
 				if (transitionCursor->inChar == transitionCursor->outChar &&
 					transitionCursor->move == MOVE_STAY &&
-					queueCursor->stateID == transitionCursor->endState) {
+					queueHead->stateID == transitionCursor->endState) {
 					//printf("è un pozzo\n");
 					mt_status = 2;
 
-					queueTemp = queueCursor;
-					queueCursor = queueCursor->next;
-					free(queueTemp->tape->left);
+					queueTemp = queueHead;
+					queueHead = queueHead->next;
+					if (queueTemp->tape->left != NULL)
+						free(queueTemp->tape->left);
 					free(queueTemp->tape->right);
 					free(queueTemp->tape);
 					free(queueTemp);
 					queueLength--;
+
 					to_exit = true;
 					break;
 				}
 			}
+
 			//printf("g\n");
 			queue->next = malloc(sizeof(configuration));
 			queue = queue->next;
 
 			queue->stateID = transitionCursor->endState;
-			queue->index = queueCursor->index;
-			queue->moves = queueCursor->moves + 1;
+			queue->index = queueHead->index;
+			queue->moves = queueHead->moves + 1;
 			//printf("h\n");
 			if (transitionCounter > 1) {
 				//printf("h1\n");
 				localQueueCounter = 0;
-				if (queueCursor->tape->reference_counter > 0)
-					queueCursor->tape->reference_counter--;
+				if (queueHead->tape->reference_counter > 0)
+					queueHead->tape->reference_counter--;
 				
 				queue->tape = malloc(sizeof(tapeInfo));
-				queue->tape->leftCounter = queueCursor->tape->leftCounter;
-				queue->tape->rightCounter = queueCursor->tape->rightCounter;
-				queue->tape->leftMaxSize = queueCursor->tape->leftMaxSize;
-				queue->tape->rightMaxSize = queueCursor->tape->rightMaxSize;
+				queue->tape->leftCounter = queueHead->tape->leftCounter;
+				queue->tape->rightCounter = queueHead->tape->rightCounter;
+				queue->tape->leftMaxSize = queueHead->tape->leftMaxSize;
+				queue->tape->rightMaxSize = queueHead->tape->rightMaxSize;
 
-				if (queueCursor->tape->left == NULL) {
+				if (queueHead->tape->left == NULL) {
 					queue->tape->left = NULL;
 				} else {
 					queue->tape->left = malloc(sizeof(char) * queue->tape->leftMaxSize);
 					for (i = 0; i < queue->tape->leftMaxSize; i++) 
-						queue->tape->left[i] = queueCursor->tape->left[i];
+						queue->tape->left[i] = queueHead->tape->left[i];
 				}
 
 				queue->tape->right = malloc(sizeof(char) * queue->tape->rightMaxSize);
 				for (i = 0; i < queue->tape->rightMaxSize; i++) 
-					queue->tape->right[i] = queueCursor->tape->right[i];
+					queue->tape->right[i] = queueHead->tape->right[i];
 				queue->tape->reference_counter = 0;
 			} else if (transitionCounter == 1) {
 				//printf("h2\n");
-				deterministic = true;
-				queueCursor->tape->reference_counter++;
-				queue->tape = queueCursor->tape;
+				queueHead->tape->reference_counter++;
+				queue->tape = queueHead->tape;
 			}
 			//printf("i\n");
-			if (queue->index >= 0) {
-				if (transitionCursor->inChar == queue->tape->right[queue->index])
+			if (transitionCursor->inChar != transitionCursor->outChar) {
+				if (queue->index >= 0) {
 					queue->tape->right[queue->index] = transitionCursor->outChar;
-			} else {
-				if (transitionCursor->inChar == queue->tape->left[abs(queue->tape->leftCounter + queue->index) - 1])
-					queue->tape->left[abs(queue->tape->leftCounter + queue->index) - 1] = transitionCursor->outChar;
+				} else {
+					queue->tape->left[abs(queue->index) - 1] = transitionCursor->outChar;
+				}
 			}
 			//printf("l\n");
 			if (transitionCursor->move == MOVE_RIGHT) {
@@ -329,15 +321,16 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 			continue;
 
 		//printf("o\n");
-		queueTemp = queueCursor;
-		queueCursor = queueCursor->next;
+		queueTemp = queueHead;
+		queueHead = queueHead->next;
 		//if (queueTemp->tape->reference_counter > 0)
 		//	queueTemp->tape->reference_counter--;
 		
 		//printf("REF COUNTER: %d, mt_status: %d, queue_len: %d, localQueueCounter: %d\n", queueTemp->tape->reference_counter, mt_status, queueLength, localQueueCounter);
 		if (queueTemp->tape->reference_counter == 0 || localQueueCounter == 0) {
 			//printf("Free nastro!!\n");
-			free(queueTemp->tape->left);
+			if (queueTemp->tape->left != NULL)
+				free(queueTemp->tape->left);
 			free(queueTemp->tape->right);
 			free(queueTemp->tape);
 		}
@@ -345,9 +338,9 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 		queueLength--;
 	}
 
-	while (queueCursor != NULL) {
-		queueTemp = queueCursor;
-		queueCursor = queueTemp->next;
+	while (queueHead != NULL) {
+		queueTemp = queueHead;
+		queueHead = queueHead->next;
 		if (queueTemp->tape->left != NULL)
 			free(queueTemp->tape->left);
 		free(queueTemp->tape->right);
@@ -398,6 +391,7 @@ int main(int argc, char const *argv[]) {
 
 	while ((parsing_ch = getc(stdin)) != EOF) {
 		if (parsing_ch != '\n') {
+			if (parsing_ch == '\r') continue;
 			parsing_line[parsing_index] = parsing_ch;
 			parsing_index++;
 		} else {
@@ -417,7 +411,6 @@ int main(int argc, char const *argv[]) {
 						node->move = MOVE_STAY;
 					else if (parsing_move == 'L')
 						node->move = MOVE_LEFT;
-					
 					int stateHash = node->startState % STATES_HASHMAP;
 					if (chars[node->inChar-48] == NULL) {
 						transition **table = malloc(STATES_HASHMAP * sizeof(transition*));
@@ -490,7 +483,6 @@ int main(int argc, char const *argv[]) {
 	for (i = 0; i < acceptingCounter; i++) {
 		printf("\t\t- %d\n", acceptingState[i]);
 	}*/
-	
 
 	/*int lineToSkip = 0;
 	while (lineToSkip > 0) {

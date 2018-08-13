@@ -28,6 +28,7 @@ typedef struct _tape {
 	int reference_counter;
 	char *left;
 	char *right;
+	bool toCopy;
 } tapeInfo;
 
 typedef struct _configuration {
@@ -42,6 +43,7 @@ int loadTape(tapeInfo **tapeP) {
 	char parsing_ch;
 	tapeInfo *tape = *tapeP;
 
+	tape->toCopy= false;
 	tape->leftCounter = 0;
 	tape->leftMaxSize = 0;
 	tape->left = NULL;
@@ -105,6 +107,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 	queue->index = 0;
 	queue->moves = 0;
 	queue->tape = malloc(sizeof(tapeInfo));
+	queue->tape->toCopy = false;
 	queue->tape->reference_counter = 0;
 	queue->tape->leftCounter = basicTape->leftCounter;
 	queue->tape->rightCounter = basicTape->rightCounter;
@@ -264,13 +267,14 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 			queue->index = queueHead->index;
 			queue->moves = queueHead->moves + 1;
 			//printf("h\n");
-			if (transitionCounter > 1) {
+			/*if (transitionCounter > 1) {
 				//printf("h1\n");
 				localQueueCounter = 0;
 				if (queueHead->tape->reference_counter > 0)
 					queueHead->tape->reference_counter--;
 				
 				queue->tape = malloc(sizeof(tapeInfo));
+				queue->tape->toCopy = false;
 				queue->tape->leftCounter = queueHead->tape->leftCounter;
 				queue->tape->rightCounter = queueHead->tape->rightCounter;
 				queue->tape->leftMaxSize = queueHead->tape->leftMaxSize;
@@ -290,8 +294,8 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 				queue->tape->reference_counter = 0;
 			} else if (transitionCounter == 1) {
 				//printf("h2\n");
-				queueHead->tape->reference_counter++;
 				queue->tape = queueHead->tape;
+				queue->tape->reference_counter++;
 			}
 			//printf("i\n");
 			if (transitionCursor->inChar != transitionCursor->outChar) {
@@ -300,7 +304,51 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 				} else {
 					queue->tape->left[abs(queue->index) - 1] = transitionCursor->outChar;
 				}
+			}*/
+			if (transitionCursor->inChar == transitionCursor->outChar) {
+				queue->tape = queueHead->tape;
+				queue->tape->reference_counter++;
+				queue->tape->toCopy = true;
+				//printf("\tSI\n");
+			} else {
+				if (transitionCounter > 1 || queueHead->tape->toCopy) {
+					//printf("\tNO1\n");
+					localQueueCounter = 0;
+					if (queueHead->tape->reference_counter > 0)
+						queueHead->tape->reference_counter--;
+					
+					queue->tape = malloc(sizeof(tapeInfo));
+					queue->tape->toCopy = false;
+					queue->tape->leftCounter = queueHead->tape->leftCounter;
+					queue->tape->rightCounter = queueHead->tape->rightCounter;
+					queue->tape->leftMaxSize = queueHead->tape->leftMaxSize;
+					queue->tape->rightMaxSize = queueHead->tape->rightMaxSize;
+
+					if (queueHead->tape->left == NULL) {
+						queue->tape->left = NULL;
+					} else {
+						queue->tape->left = malloc(sizeof(char) * queue->tape->leftMaxSize);
+						for (i = 0; i < queue->tape->leftMaxSize; i++) 
+							queue->tape->left[i] = queueHead->tape->left[i];
+					}
+
+					queue->tape->right = malloc(sizeof(char) * queue->tape->rightMaxSize);
+					for (i = 0; i < queue->tape->rightMaxSize; i++) 
+						queue->tape->right[i] = queueHead->tape->right[i];
+					queue->tape->reference_counter = 0;
+				} else if (transitionCounter == 1) {
+					//printf("\tNO2\n");
+					queue->tape = queueHead->tape;
+					queue->tape->reference_counter++;
+				}
+				if (queue->index >= 0) {
+					queue->tape->right[queue->index] = transitionCursor->outChar;
+				} else {
+					queue->tape->left[abs(queue->index) - 1] = transitionCursor->outChar;
+				}
 			}
+			//printf("\t---\n");
+
 			//printf("l\n");
 			if (transitionCursor->move == MOVE_RIGHT) {
 				queue->index = queue->index + 1;
@@ -327,7 +375,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 		//	queueTemp->tape->reference_counter--;
 		
 		//printf("REF COUNTER: %d, mt_status: %d, queue_len: %d, localQueueCounter: %d\n", queueTemp->tape->reference_counter, mt_status, queueLength, localQueueCounter);
-		if (queueTemp->tape->reference_counter == 0 || localQueueCounter == 0) {
+		if ((queueTemp->tape->reference_counter == 0 || localQueueCounter == 0) && (queueTemp->tape->toCopy == false)) {
 			//printf("Free nastro!!\n");
 			if (queueTemp->tape->left != NULL)
 				free(queueTemp->tape->left);

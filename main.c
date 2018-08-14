@@ -8,20 +8,24 @@
 #define STATES_HASHMAP 16
 #define INPUT_BUFFER 18
 
-typedef enum {MOVE_RIGHT, MOVE_STAY, MOVE_LEFT} moveType;
-typedef enum {false, true} bool;
+#define MOVE_RIGHT 0
+#define MOVE_STAY 1
+#define MOVE_LEFT 2
+
+#define false 0
+#define true 1
 
 typedef struct _transition {
 	unsigned int startState;
 	unsigned int endState;
 	char inChar;
 	char outChar;
-	moveType move;
+	int move;
 	struct _transition *next;
 } transition;
 
 typedef struct _tape {
-	int tapeID;
+	//int tapeID;
 	int leftCounter;
 	int rightCounter;
 	int leftMaxSize;
@@ -35,7 +39,6 @@ typedef struct _configuration {
 	int stateID;
 	long moves;
 	int index;
-	bool inherited;
 	tapeInfo *tape;
 	struct _configuration *next;
 } configuration;
@@ -82,8 +85,8 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 	int i;
 	int mt_status = 0;
 	int transitionCounter = 0;
-	bool to_exit = false;
-	bool to_clean = false;
+	
+	int to_exit = 0;
 
 	int tapeCounter = 0;
 
@@ -111,10 +114,9 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 	queue->stateID = 0;
 	queue->index = 0;
 	queue->moves = 0;
-	queue->inherited = false;
 	queue->tape = malloc(sizeof(tapeInfo));
-	queue->tape->tapeID = tapeCounter;
-	tapeCounter++;
+	//queue->tape->tapeID = tapeCounter;
+	//tapeCounter++;
 	queue->tape->reference_counter = 0;
 	queue->tape->leftCounter = basicTape->leftCounter;
 	queue->tape->rightCounter = basicTape->rightCounter;
@@ -140,15 +142,14 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 		//printf("\n");
 		//printf("%d\t (moves: %ld, queue size: %d)\n", queueHead->stateID, queueHead->moves, queueLength);
 		
-		to_exit = false;
-		to_clean = false;
+		to_exit = 0;
 		for (i = 0; i < acceptingCounter; i++) {
 			if (queueHead->stateID == acceptingState[i]) {
-				to_exit = true;
+				to_exit = 1;
 				break;
 			}
 		}
-		if (to_exit) {
+		if (to_exit == 1) {
 			mt_status = 1;
 
 			while (queueHead != NULL) {
@@ -211,7 +212,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 					queueHead->tape->left[i] = '_';
 			}
 
-			if (abs(queueHead->index) >= queueHead->tape->leftMaxSize) {
+			if (-queueHead->index >= queueHead->tape->leftMaxSize) {
 				queueHead->tape->leftMaxSize = queueHead->tape->leftMaxSize * 2;
 				queueHead->tape->left = realloc(queueHead->tape->left, sizeof(char) * queueHead->tape->leftMaxSize);
 				
@@ -219,7 +220,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 					queueHead->tape->left[i] = '_';
 			}
 
-			currentChar = queueHead->tape->left[abs(queueHead->index) - 1];
+			currentChar = queueHead->tape->left[-queueHead->index - 1];
 			if (chars[currentChar - 48] == NULL) {
 				transitionCursor = NULL;
 			} else {
@@ -261,7 +262,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 					free(queueTemp);
 
 					queueLength--;
-					to_exit = true;
+					to_exit = 1;
 					break;
 				}
 			}
@@ -269,7 +270,6 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 			queue->next = malloc(sizeof(configuration));
 			queue = queue->next;
 
-			queue->inherited = false;
 			queue->stateID = transitionCursor->endState;
 			queue->index = queueHead->index;
 			queue->moves = queueHead->moves + 1;
@@ -278,14 +278,13 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 				queueHead->tape->reference_counter = 1;
 				//printf("LINK NASTRO %d (e)\n", queueHead->tape->tapeID);
 				queue->tape = queueHead->tape;
-				queue->inherited = true;
 			} else {
 				if (transitionCounter > 1) {
 					queueHead->tape->reference_counter = 0;
 
 					queue->tape = malloc(sizeof(tapeInfo));
-					queue->tape->tapeID = tapeCounter;
-					tapeCounter++;
+					//queue->tape->tapeID = tapeCounter;
+					//tapeCounter++;
 					queue->tape->reference_counter = 0;
 					queue->tape->leftCounter = queueHead->tape->leftCounter;
 					queue->tape->rightCounter = queueHead->tape->rightCounter;
@@ -309,13 +308,12 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 					queueHead->tape->reference_counter = 1;
 					//printf("LINK NASTRO %d (g)\n", queueHead->tape->tapeID);
 					queue->tape = queueHead->tape;
-					queue->inherited = true;
 				}
 
 				if (queue->index >= 0) {
 					queue->tape->right[queue->index] = transitionCursor->outChar;
 				} else {
-					queue->tape->left[abs(queue->index) - 1] = transitionCursor->outChar;
+					queue->tape->left[-queue->index - 1] = transitionCursor->outChar;
 				}
 			}
 
@@ -332,7 +330,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 
 			transitionCursor = transitionCursor->next;
 		}
-		if (to_exit)
+		if (to_exit == 1)
 			continue;
 
 		queueTemp = queueHead;

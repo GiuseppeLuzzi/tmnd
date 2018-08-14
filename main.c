@@ -21,6 +21,7 @@ typedef struct _transition {
 } transition;
 
 typedef struct _tape {
+	int tapeID;
 	int leftCounter;
 	int rightCounter;
 	int leftMaxSize;
@@ -84,6 +85,8 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 	bool to_exit = false;
 	bool to_clean = false;
 
+	int tapeCounter = 0;
+
 	tapeInfo *basicTape = malloc(sizeof(tapeInfo));
 	transition ***chars = _chars;
 	unsigned int *acceptingState = *acceptingStateP;
@@ -110,11 +113,14 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 	queue->moves = 0;
 	queue->inherited = false;
 	queue->tape = malloc(sizeof(tapeInfo));
+	queue->tape->tapeID = tapeCounter;
+	tapeCounter++;
 	queue->tape->reference_counter = 0;
 	queue->tape->leftCounter = basicTape->leftCounter;
 	queue->tape->rightCounter = basicTape->rightCounter;
 	queue->tape->leftMaxSize = basicTape->leftMaxSize;
 	queue->tape->rightMaxSize = basicTape->rightMaxSize;
+	//printf("CREO NASTRO %d (a)\n", queue->tape->tapeID);
 
 	queue->tape->left = NULL;
 	queue->tape->right = malloc(sizeof(char) * queue->tape->rightMaxSize);
@@ -149,6 +155,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 				queueTemp = queueHead;
 				queueHead = queueHead->next;
 
+				//printf("DIST NASTRO %d (b)\n", queueTemp->tape->tapeID);
 				if (queueTemp->tape->left != NULL)
 					free(queueTemp->tape->left);
 				free(queueTemp->tape->right);
@@ -166,6 +173,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 			queueTemp = queueHead;
 			queueHead = queueHead->next;
 
+			//printf("DIST NASTRO %d (c)\n", queueTemp->tape->tapeID);
 			if (queueTemp->tape->left != NULL)
 				free(queueTemp->tape->left);
 			free(queueTemp->tape->right);
@@ -227,7 +235,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 			}
 			transitionTemp = transitionTemp->next;
 		}
-
+		//printf("ELAB NASTRO (%d) (%d)\n", queueHead->tape->tapeID, transitionCounter);
 		localQueueCounter = 0;
 		while (transitionCounter > 0 && transitionCursor != NULL) {
 			if ((transitionCursor->startState != queueHead->stateID) || (transitionCursor->inChar != currentChar)) {
@@ -245,6 +253,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 					queueTemp = queueHead;
 					queueHead = queueHead->next;
 
+					//printf("DIST NASTRO %d (d)\n", queueTemp->tape->tapeID);
 					if (queueTemp->tape->left != NULL)
 						free(queueTemp->tape->left);
 					free(queueTemp->tape->right);
@@ -267,7 +276,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 
 			if (transitionCursor->inChar == transitionCursor->outChar && transitionCounter == 1) {
 				queueHead->tape->reference_counter = 1;
-
+				//printf("LINK NASTRO %d (e)\n", queueHead->tape->tapeID);
 				queue->tape = queueHead->tape;
 				queue->inherited = true;
 			} else {
@@ -275,12 +284,15 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 					queueHead->tape->reference_counter = 0;
 
 					queue->tape = malloc(sizeof(tapeInfo));
+					queue->tape->tapeID = tapeCounter;
+					tapeCounter++;
 					queue->tape->reference_counter = 0;
 					queue->tape->leftCounter = queueHead->tape->leftCounter;
 					queue->tape->rightCounter = queueHead->tape->rightCounter;
 					queue->tape->leftMaxSize = queueHead->tape->leftMaxSize;
 					queue->tape->rightMaxSize = queueHead->tape->rightMaxSize;
 
+					//printf("CREO NASTRO %d (f)\n", queue->tape->tapeID);
 					if (queueHead->tape->left == NULL) {
 						queue->tape->left = NULL;
 					} else {
@@ -295,7 +307,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 
 				} else if (transitionCounter == 1) {
 					queueHead->tape->reference_counter = 1;
-
+					//printf("LINK NASTRO %d (g)\n", queueHead->tape->tapeID);
 					queue->tape = queueHead->tape;
 					queue->inherited = true;
 				}
@@ -325,7 +337,8 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 
 		queueTemp = queueHead;
 		queueHead = queueHead->next;
-		if (transitionCounter > 1) {
+		if (transitionCounter == 0 || transitionCounter > 1) {
+			//printf("DIST NASTRO %d (h)\n", queueTemp->tape->tapeID);
 			if (queueTemp->tape->left != NULL)
 				free(queueTemp->tape->left);
 			free(queueTemp->tape->right);
@@ -338,6 +351,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 		//printf("o\n");
 
 		queueLength--;
+		//printf("---\n");
 	}
 
 	if (mt_status == 2) {
@@ -476,7 +490,7 @@ int main(int argc, char const *argv[]) {
 		printf("\t\t- %d\n", acceptingState[i]);
 	}*/
 
-	//*
+	/*
 	int lineToSkip = 0;
 	while (lineToSkip > 0) {
 		while ((parsing_ch = getc(stdin)) != EOF) {
@@ -487,8 +501,8 @@ int main(int argc, char const *argv[]) {
 		lineToSkip -= 1;
 	}
 	simulate(chars, maxSteps, &acceptingState, acceptingCounter);
-	//*/
-	//while(simulate(chars, maxSteps, &acceptingState, acceptingCounter) != 1);
+	*/
+	while(simulate(chars, maxSteps, &acceptingState, acceptingCounter) != 1);
 
 	free(acceptingState);
 	transition *transitionTemp, *transitionCursor;

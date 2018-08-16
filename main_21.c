@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define RIGHT_MIN_SIZE 2
-#define LEFT_MIN_SIZE 2
+#define RIGHT_MIN_SIZE 128
+#define LEFT_MIN_SIZE 128
 #define ACCEPTING_STATES_MIN_SIZE 10
 #define STATES_HASHMAP 512
 #define INPUT_BUFFER 128
@@ -84,6 +84,8 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 	
 	int to_exit = 0;
 
+	//int tapeCounter = 0;
+
 	tapeInfo *basicTape = malloc(sizeof(tapeInfo));
 	transition ***chars = _chars;
 	unsigned int *acceptingState = *acceptingStateP;
@@ -98,6 +100,9 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 	}
 	basicTape->rightCounter = basicTape->rightMaxSize;
 	
+	//for (int i = 0; i < basicTape->rightMaxSize; i++)
+	//	printf("tape right [%d]:\t%c\n", i, basicTape->right[i]);
+
 	configuration *queue = malloc(sizeof(configuration)); // Indica sempre la coda
 	configuration *queueSuperHead = queue;
 	configuration *queueHead = queue; // Indica sempre la testa
@@ -107,11 +112,14 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 	queue->index = 0;
 	queue->moves = 0;
 	queue->tape = malloc(sizeof(tapeInfo));
+	//queue->tape->tapeID = tapeCounter;
+	//tapeCounter++;
 	queue->tape->reference_counter = 0;
 	queue->tape->leftCounter = basicTape->leftCounter;
 	queue->tape->rightCounter = basicTape->rightCounter;
 	queue->tape->leftMaxSize = basicTape->leftMaxSize;
 	queue->tape->rightMaxSize = basicTape->rightMaxSize;
+	//printf("CREO NASTRO %d (a)\n", queue->tape->tapeID);
 
 	queue->tape->left = NULL;
 	queue->tape->right = malloc(sizeof(char) * queue->tape->rightMaxSize);
@@ -121,6 +129,16 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 	queue->next = NULL;
 	
 	while (queueLength > 0) {
+		
+		//printf("---\n");
+		//for (int j = queueHead->tape->leftMaxSize; j > 0; j--)
+		//	printf(" %c", queueHead->tape->left[j]);
+		//printf("||");
+		//for (int j = 0; j < queueHead->tape->rightMaxSize; j++) 
+		//	printf(" %c", queueHead->tape->right[j]);
+		//printf("\n");
+		//printf("%d\t (moves: %ld, queue size: %d)\n", queueHead->stateID, queueHead->moves, queueLength);
+		
 		to_exit = 0;
 		for (i = 0; i < acceptingCounter; i++) {
 			if (queueHead->stateID == acceptingState[i]) {
@@ -135,6 +153,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 				queueTemp = queueHead;
 				queueHead = queueHead->next;
 
+				//printf("DIST NASTRO %d (b)\n", queueTemp->tape->tapeID);
 				if (queueTemp->tape->left != NULL)
 					free(queueTemp->tape->left);
 				free(queueTemp->tape->right);
@@ -152,6 +171,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 			queueTemp = queueHead;
 			queueHead = queueHead->next;
 
+			//printf("DIST NASTRO %d (c)\n", queueTemp->tape->tapeID);
 			if (queueTemp->tape->left != NULL)
 				free(queueTemp->tape->left);
 			free(queueTemp->tape->right);
@@ -171,10 +191,19 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 				queueHead->tape->rightMaxSize = queueHead->tape->rightMaxSize * 2;
 				queueHead->tape->right = realloc(queueHead->tape->right, sizeof(char) * queueHead->tape->rightMaxSize);
 				
+				//printf("Realloc right (%d -> %d): ", queueHead->tape->rightCounter, queueHead->tape->rightMaxSize);
 				for (int i = queueHead->tape->rightCounter; i < queueHead->tape->rightMaxSize; i++)
 					queueHead->tape->right[i] = '_';
 				queueHead->tape->rightCounter = queueHead->tape->rightMaxSize;
+				//for (int i = 0; i < queueHead->tape->rightMaxSize; i++)
+				//	printf("%c", queueHead->tape->right[i]);
+				//printf("\n");
 			}
+			//else {
+			//	for (int i = 0; i < queueHead->tape->rightMaxSize; i++)
+			//		printf("%c", queueHead->tape->right[i]);
+			//	printf("\n");
+			//}
 
 			currentChar = queueHead->tape->right[queueHead->index];
 			if (chars[currentChar - 48] == NULL) {
@@ -198,6 +227,10 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 				for (int i = queueHead->tape->leftCounter; i < queueHead->tape->leftMaxSize; i++)
 					queueHead->tape->left[i] = '_';
 				queueHead->tape->leftCounter = queueHead->tape->leftMaxSize;
+				//printf("Realloc left: ");
+				//for (int i = 0; i < queueHead->tape->leftMaxSize; i++)
+				//	printf("%c", queueHead->tape->left[i]);
+				//printf("\n");
 			}
 
 			currentChar = queueHead->tape->left[-queueHead->index - 1];
@@ -257,6 +290,8 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 				queueHead->tape->reference_counter = 0;
 
 				queue->tape = malloc(sizeof(tapeInfo));
+				//queue->tape->tapeID = tapeCounter;
+				//tapeCounter++;
 				queue->tape->reference_counter = 0;
 				queue->tape->leftCounter = queueHead->tape->leftCounter;
 				queue->tape->rightCounter = queueHead->tape->rightCounter;
@@ -268,15 +303,13 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 					queue->tape->left = NULL;
 				} else {
 					queue->tape->left = malloc(sizeof(char) * queue->tape->leftMaxSize);
-					//for (i = 0; i < queue->tape->leftMaxSize; i++) 
-					//	queue->tape->left[i] = queueHead->tape->left[i];
-					strncpy(queue->tape->left, queueHead->tape->left, queue->tape->leftMaxSize);
+					for (i = 0; i < queue->tape->leftMaxSize; i++) 
+						queue->tape->left[i] = queueHead->tape->left[i];
 				}
 
 				queue->tape->right = malloc(sizeof(char) * queue->tape->rightMaxSize);
-				//for (i = 0; i < queue->tape->rightMaxSize; i++) 
-				//	queue->tape->right[i] = queueHead->tape->right[i];
-				strncpy(queue->tape->right, queueHead->tape->right, queue->tape->rightMaxSize);
+				for (i = 0; i < queue->tape->rightMaxSize; i++) 
+					queue->tape->right[i] = queueHead->tape->right[i];
 
 			} else if (transitionCounter == 1) {
 				queueHead->tape->reference_counter = 1;
@@ -318,6 +351,10 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 			free(queueTemp->tape);
 		}
 		free(queueTemp);
+
+		// fine while transitioncursor
+
+		//printf("o\n");
 
 		queueLength--;
 		//printf("---\n");
@@ -478,7 +515,7 @@ int main(int argc, char const *argv[]) {
 	transition *transitionTemp, *transitionCursor;
 	for (i = 0; i < 76; i++) {
 		if (chars[i] == NULL) continue;
-		for (k = 0; k < STATES_HASHMAP; k++) {
+		for (k = 0; k < 16; k++) {
 			if (chars[i][k] == NULL) continue;
 			transitionCursor = chars[i][k];
 			while (transitionCursor != NULL) {

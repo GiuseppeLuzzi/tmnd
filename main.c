@@ -2,18 +2,26 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define RIGHT_MIN_SIZE 64
-#define LEFT_MIN_SIZE 64
+#ifdef BENCH
+	#include <time.h>
+#endif
+
+// 128
+#define RIGHT_MIN_SIZE 128
+// 128
+#define LEFT_MIN_SIZE 128
+// 10
 #define ACCEPTING_STATES_MIN_SIZE 10
-#define STATES_HASHMAP 16
+// 64
+#define STATES_HASHMAP 32
+// 18
 #define INPUT_BUFFER 18
 
 #define MOVE_RIGHT 0
 #define MOVE_STAY 1
 #define MOVE_LEFT 2
 
-#define false 0
-#define true 1
+typedef enum {false, true} bool;
 
 typedef struct _transition {
 	unsigned int startState;
@@ -25,7 +33,6 @@ typedef struct _transition {
 } transition;
 
 typedef struct _tape {
-	//int tapeID;
 	int leftCounter;
 	int rightCounter;
 	int leftMaxSize;
@@ -47,7 +54,7 @@ int loadTape(tapeInfo **tapeP) {
 	char parsing_ch;
 	tapeInfo *tape = *tapeP;
 
-	tape->reference_counter= 0;
+	tape->reference_counter= 1;
 	tape->leftCounter = 0;
 	tape->leftMaxSize = 0;
 	tape->left = NULL;
@@ -58,7 +65,7 @@ int loadTape(tapeInfo **tapeP) {
 	for (int i = 0; i < tape->rightMaxSize; i++)
 		tape->right[i] = '_';
 
-	while ((parsing_ch = getc(stdin)) != EOF) {
+	while ((parsing_ch = getchar()) != EOF) {
 		if (parsing_ch == '\r') {
 			continue;
 		} else if (parsing_ch == '\n') {
@@ -78,46 +85,44 @@ int loadTape(tapeInfo **tapeP) {
 	return 0;
 }
 
-int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP, int acceptingCounter) {
-	int localQueueCounter = 0;
+int simulate(transition ***_chars, long maxSteps, long **acceptingStateP, int acceptingCounter) {
 	int queueLength = 1;
 	int eof = 0;
 	int i;
 	int mt_status = 0;
 	int transitionCounter = 0;
-	
 	int to_exit = 0;
 
-	int tapeCounter = 0;
+	//int tapeCounter = 0;
 
 	tapeInfo *basicTape = malloc(sizeof(tapeInfo));
 	transition ***chars = _chars;
-	unsigned int *acceptingState = *acceptingStateP;
+	long *acceptingState = *acceptingStateP;
 
 	eof = loadTape(&basicTape);
-	if (eof && basicTape->rightCounter == 0) {
+	if (eof == 1 && basicTape->rightCounter == 0) {
 		free(basicTape->right);
 		if (basicTape->left != NULL)
 			free(basicTape->left);
 		free(basicTape);
 		return eof;
 	}
+	basicTape->rightCounter = basicTape->rightMaxSize;
 	
 	//for (int i = 0; i < basicTape->rightMaxSize; i++)
 	//	printf("tape right [%d]:\t%c\n", i, basicTape->right[i]);
 
 	configuration *queue = malloc(sizeof(configuration)); // Indica sempre la coda
-	configuration *queueSuperHead = queue;
 	configuration *queueHead = queue; // Indica sempre la testa
 	configuration *queueTemp = NULL;
+
+	tapeInfo *tempTape = NULL;
 
 	queue->stateID = 0;
 	queue->index = 0;
 	queue->moves = 0;
 	queue->tape = malloc(sizeof(tapeInfo));
-	//queue->tape->tapeID = tapeCounter;
-	//tapeCounter++;
-	queue->tape->reference_counter = 0;
+	queue->tape->reference_counter = 1;
 	queue->tape->leftCounter = basicTape->leftCounter;
 	queue->tape->rightCounter = basicTape->rightCounter;
 	queue->tape->leftMaxSize = basicTape->leftMaxSize;
@@ -173,7 +178,9 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 
 			queueTemp = queueHead;
 			queueHead = queueHead->next;
-
+			if (queueTemp->tape->reference_counter > 0)
+				queueTemp->tape->reference_counter--;
+			
 			//printf("DIST NASTRO %d (c)\n", queueTemp->tape->tapeID);
 			if (queueTemp->tape->left != NULL)
 				free(queueTemp->tape->left);
@@ -190,13 +197,24 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 		char currentChar = 0;
 
 		if (queueHead->index >= 0) {
-			if (queueHead->index >= queueHead->tape->rightMaxSize) {
+			if (queueHead->index >= queueHead->tape->rightMaxSize - 1) {
 				queueHead->tape->rightMaxSize = queueHead->tape->rightMaxSize * 2;
 				queueHead->tape->right = realloc(queueHead->tape->right, sizeof(char) * queueHead->tape->rightMaxSize);
 				
+				//printf("Realloc right (%d -> %d): ", queueHead->tape->rightCounter, queueHead->tape->rightMaxSize);
 				for (int i = queueHead->tape->rightCounter; i < queueHead->tape->rightMaxSize; i++)
 					queueHead->tape->right[i] = '_';
-			}
+
+				queueHead->tape->rightCounter = queueHead->tape->rightMaxSize;
+				//for (int i = 0; i < queueHead->tape->rightMaxSize; i++)
+				//	printf("%c", queueHead->tape->right[i]);
+				//printf("\n");
+			} 
+			//else {
+				//for (int i = 0; i < queueHead->tape->rightMaxSize; i++)
+				//	printf("%c", queueHead->tape->right[i]);
+				//printf("\n");
+			//}
 
 			currentChar = queueHead->tape->right[queueHead->index];
 			if (chars[currentChar - 48] == NULL) {
@@ -212,12 +230,17 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 					queueHead->tape->left[i] = '_';
 			}
 
-			if (-queueHead->index >= queueHead->tape->leftMaxSize) {
+			if (-queueHead->index >= queueHead->tape->leftMaxSize - 1) {
 				queueHead->tape->leftMaxSize = queueHead->tape->leftMaxSize * 2;
 				queueHead->tape->left = realloc(queueHead->tape->left, sizeof(char) * queueHead->tape->leftMaxSize);
 				
 				for (int i = queueHead->tape->leftCounter; i < queueHead->tape->leftMaxSize; i++)
 					queueHead->tape->left[i] = '_';
+				queueHead->tape->leftCounter = queueHead->tape->leftMaxSize;
+				//printf("Realloc left: ");
+				//for (int i = 0; i < queueHead->tape->leftMaxSize; i++)
+				//	printf("%c", queueHead->tape->left[i]);
+				//printf("\n");
 			}
 
 			currentChar = queueHead->tape->left[-queueHead->index - 1];
@@ -230,14 +253,15 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 		transitionCounter = 0;
 		transitionTemp = transitionCursor;
 
+		//tempTape = NULL;
+
 		while (transitionTemp != NULL) {
 			if (transitionTemp->startState == queueHead->stateID && transitionTemp->inChar == currentChar) {
 				transitionCounter++;
 			}
 			transitionTemp = transitionTemp->next;
 		}
-		//printf("ELAB NASTRO (%d) (%d)\n", queueHead->tape->tapeID, transitionCounter);
-		localQueueCounter = 0;
+		//printf("ELAB NASTRO %d (%d)\n", queueHead->tape->tapeID, transitionCounter);
 		while (transitionCounter > 0 && transitionCursor != NULL) {
 			if ((transitionCursor->startState != queueHead->stateID) || (transitionCursor->inChar != currentChar)) {
 				transitionCursor = transitionCursor->next;
@@ -253,6 +277,9 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 
 					queueTemp = queueHead;
 					queueHead = queueHead->next;
+
+					if (queueTemp->tape->reference_counter > 0)
+						queueTemp->tape->reference_counter--;
 
 					//printf("DIST NASTRO %d (d)\n", queueTemp->tape->tapeID);
 					if (queueTemp->tape->left != NULL)
@@ -274,18 +301,17 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 			queue->index = queueHead->index;
 			queue->moves = queueHead->moves + 1;
 
-			if (transitionCursor->inChar == transitionCursor->outChar && transitionCounter == 1) {
-				queueHead->tape->reference_counter = 1;
+			if (transitionCursor->inChar == transitionCursor->outChar) {
+				queueHead->tape->reference_counter++;
+
 				//printf("LINK NASTRO %d (e)\n", queueHead->tape->tapeID);
 				queue->tape = queueHead->tape;
 			} else {
-				if (transitionCounter > 1) {
-					queueHead->tape->reference_counter = 0;
+				if (transitionCounter > 1 || queueHead->tape->reference_counter > 1) {
+					tempTape = queueHead->tape;
 
 					queue->tape = malloc(sizeof(tapeInfo));
-					//queue->tape->tapeID = tapeCounter;
-					//tapeCounter++;
-					queue->tape->reference_counter = 0;
+					queue->tape->reference_counter = 1;
 					queue->tape->leftCounter = queueHead->tape->leftCounter;
 					queue->tape->rightCounter = queueHead->tape->rightCounter;
 					queue->tape->leftMaxSize = queueHead->tape->leftMaxSize;
@@ -305,7 +331,8 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 						queue->tape->right[i] = queueHead->tape->right[i];
 
 				} else if (transitionCounter == 1) {
-					queueHead->tape->reference_counter = 1;
+					queueHead->tape->reference_counter++;
+
 					//printf("LINK NASTRO %d (g)\n", queueHead->tape->tapeID);
 					queue->tape = queueHead->tape;
 				}
@@ -335,8 +362,21 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 
 		queueTemp = queueHead;
 		queueHead = queueHead->next;
-		if (transitionCounter == 0 || transitionCounter > 1) {
-			//printf("DIST NASTRO %d (h)\n", queueTemp->tape->tapeID);
+
+		if (queueTemp->tape->reference_counter > 0)
+			queueTemp->tape->reference_counter--;
+
+		/*if (tempTape != NULL && queueTemp->tape->reference_counter == 0) {
+
+			printf("DIST NASTRO %d (h)\n", tempTape->tapeID);
+			if (tempTape->left != NULL)
+				free(tempTape->left);
+			free(tempTape->right);
+			free(tempTape);
+			tempTape = NULL;
+		} else*/
+		if (transitionCounter == 0 && queueTemp->tape->reference_counter == 0) {
+			//printf("DIST NASTRO %d (i)\n", queueTemp->tape->tapeID);
 			if (queueTemp->tape->left != NULL)
 				free(queueTemp->tape->left);
 			free(queueTemp->tape->right);
@@ -368,6 +408,10 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 }
 
 int main(int argc, char const *argv[]) {
+	#ifdef BENCH
+		clock_t begin = clock();
+	#endif
+
 	int  parsing_step,
 		 parsing_index,
 		 i,
@@ -385,7 +429,9 @@ int main(int argc, char const *argv[]) {
 
 	int acceptingSize = ACCEPTING_STATES_MIN_SIZE;
 	int acceptingCounter = 0;
-	unsigned int *acceptingState = malloc(sizeof(int) * acceptingSize);
+	long *acceptingState = malloc(sizeof(long) * acceptingSize);
+	for (i = 0; i < acceptingSize; i++)
+		acceptingState[i] = -1;
 
 
 	parsing_step = 0;
@@ -393,7 +439,7 @@ int main(int argc, char const *argv[]) {
 	for (i = 0; i < INPUT_BUFFER; i++) 
 		parsing_line[i] = (char) 0;
 
-	while ((parsing_ch = getc(stdin)) != EOF) {
+	while ((parsing_ch = getchar()) != EOF) {
 		if (parsing_ch != '\n') {
 			if (parsing_ch == '\r') continue;
 			parsing_line[parsing_index] = parsing_ch;
@@ -409,6 +455,7 @@ int main(int argc, char const *argv[]) {
 																   &(node->outChar),
 																   &parsing_move,
 																   &(node->endState)) == 5) {
+
 					if (parsing_move == 'R')
 						node->move = MOVE_RIGHT;
 					else if (parsing_move == 'S')
@@ -439,7 +486,10 @@ int main(int argc, char const *argv[]) {
 				if (sscanf(parsing_line, "%u", &parsing_state) == 1) {
 					if (acceptingCounter >= acceptingSize) {
 						acceptingSize = acceptingSize * 2;
-						acceptingState = realloc(acceptingState, acceptingSize);
+						acceptingState = realloc(acceptingState, acceptingSize * sizeof(long));
+						
+						for (i = acceptingCounter; i < acceptingSize; i++)
+							acceptingState[i] = -1;
 					}
 				
 					acceptingState[acceptingCounter] = parsing_state;
@@ -468,7 +518,7 @@ int main(int argc, char const *argv[]) {
 		if (chars[i] == NULL) continue;
 
 		printf("\tChar: %c\n", i+48);
-		for (k = 0; k < 16; k++) {
+		for (k = 0; k < STATES_HASHMAP; k++) {
 			if (chars[i][k] == NULL) continue;
 
 			transition *transitionCursor = chars[i][k];
@@ -485,13 +535,13 @@ int main(int argc, char const *argv[]) {
 	}
 	printf("\tStati d'accettazione:\n");
 	for (i = 0; i < acceptingCounter; i++) {
-		printf("\t\t- %d\n", acceptingState[i]);
+		printf("\t\t- %ld\n", acceptingState[i]);
 	}*/
 
 	/*
-	int lineToSkip = 0;
+	int lineToSkip = 2;
 	while (lineToSkip > 0) {
-		while ((parsing_ch = getc(stdin)) != EOF) {
+		while ((parsing_ch = getchar()) != EOF) {
 			if (parsing_ch == '\n') {
 				break;
 			}
@@ -500,6 +550,7 @@ int main(int argc, char const *argv[]) {
 	}
 	simulate(chars, maxSteps, &acceptingState, acceptingCounter);
 	*/
+	//simulate(chars, maxSteps, &acceptingState, acceptingCounter);
 	while(simulate(chars, maxSteps, &acceptingState, acceptingCounter) != 1);
 
 	free(acceptingState);
@@ -517,6 +568,12 @@ int main(int argc, char const *argv[]) {
 		}
 		free(chars[i]);
 	}
+
+	#ifdef BENCH
+		clock_t end = clock();
+		double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+		printf("%fs (%f)\n", time_spent, (double)(end - begin));
+	#endif
 
 	return 0;
 }

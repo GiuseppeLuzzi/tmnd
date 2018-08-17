@@ -217,12 +217,6 @@ int simulate(statusInfo *chars[], long maxSteps, unsigned int **acceptingStateP,
 		}
 		transitionCounter = 0;
 
-		/*while (transitionTemp != NULL) {
-			if (transitionTemp->startState == queueHead->stateID && transitionTemp->inChar == currentChar) {
-				transitionCounter++;
-			}
-			transitionTemp = transitionTemp->next;
-		}*/
 		if (chars[currentChar - 48] == NULL) {
 			transitionCounter = 0;
 		} else if (chars[currentChar - 48]->transitions == NULL) {
@@ -236,35 +230,31 @@ int simulate(statusInfo *chars[], long maxSteps, unsigned int **acceptingStateP,
 			else transitionCounter = 2;
 		}
 
+		if (transitionCounter == 1) {
+			// Se è uno stato pozzo, siamo già in U per quel ramo.
+			if (transitionCursor->inChar == transitionCursor->outChar &&
+				transitionCursor->move == MOVE_STAY &&
+				queueHead->stateID == transitionCursor->endState) {
+
+				mt_status = 2;
+
+				queueTemp = queueHead;
+				queueHead = queueHead->next;
+
+				//printf("DIST NASTRO %d (d)\n", queueTemp->tape->tapeID);
+				if (queueTemp->tape->left != NULL)
+					free(queueTemp->tape->left);
+				free(queueTemp->tape->right);
+				free(queueTemp->tape);
+				free(queueTemp);
+
+				queueLength--;
+				continue;
+			}
+		}
+
 		//printf("ELAB NASTRO (%d) (%d)\n", queueHead->tape->tapeID, transitionCounter);
 		while (transitionCounter > 0 && transitionCursor != NULL) {
-			/*if ((transitionCursor->startState != queueHead->stateID) || (transitionCursor->inChar != currentChar)) {
-				transitionCursor = transitionCursor->next;
-				continue;
-			}*/
-
-			if (transitionCounter == 1) {
-				// Se è uno stato pozzo, siamo già in U per quel ramo.
-				if (transitionCursor->inChar == transitionCursor->outChar &&
-					transitionCursor->move == MOVE_STAY &&
-					queueHead->stateID == transitionCursor->endState) {
-					mt_status = 2;
-
-					queueTemp = queueHead;
-					queueHead = queueHead->next;
-
-					//printf("DIST NASTRO %d (d)\n", queueTemp->tape->tapeID);
-					if (queueTemp->tape->left != NULL)
-						free(queueTemp->tape->left);
-					free(queueTemp->tape->right);
-					free(queueTemp->tape);
-					free(queueTemp);
-
-					queueLength--;
-					to_exit = 1;
-					break;
-				}
-			}
 
 			queue->next = malloc(sizeof(configuration));
 			queue = queue->next;

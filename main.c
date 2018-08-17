@@ -2,9 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define RIGHT_MIN_SIZE 2
-#define LEFT_MIN_SIZE 2
+// 128
+#define RIGHT_MIN_SIZE 128
+// 128
+#define LEFT_MIN_SIZE 128
+// 10
 #define ACCEPTING_STATES_MIN_SIZE 10
+// 512
 #define STATES_HASHMAP 512
 #define INPUT_BUFFER 128
 
@@ -31,6 +35,11 @@ typedef struct _tape {
 	char *right;
 	int reference_counter;
 } tapeInfo;
+
+typedef struct _status {
+	unsigned int size;
+	transition** transitions;
+} statusInfo;
 
 typedef struct _configuration {
 	int stateID;
@@ -75,7 +84,7 @@ int loadTape(tapeInfo **tapeP) {
 	return 0;
 }
 
-int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP, int acceptingCounter) {
+int simulate(statusInfo *chars[], long maxSteps, unsigned int **acceptingStateP, int acceptingCounter) {
 	int queueLength = 1;
 	int eof = 0;
 	int i;
@@ -85,7 +94,7 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 	int to_exit = 0;
 
 	tapeInfo *basicTape = malloc(sizeof(tapeInfo));
-	transition ***chars = _chars;
+	//transition *chars[] = _chars;
 	unsigned int *acceptingState = *acceptingStateP;
 
 	eof = loadTape(&basicTape);
@@ -163,7 +172,6 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 		}
 
 		transition *transitionCursor = NULL;
-		transition *transitionTemp = NULL;
 		char currentChar = 0;
 
 		if (queueHead->index >= 0) {
@@ -177,10 +185,10 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 			}
 
 			currentChar = queueHead->tape->right[queueHead->index];
-			if (chars[currentChar - 48] == NULL) {
-				transitionCursor = NULL;
+			if (chars[currentChar - 48] != NULL && chars[currentChar - 48]->transitions != NULL && queueHead->stateID < chars[currentChar - 48]->size && chars[currentChar - 48]->transitions[queueHead->stateID] != NULL) {
+				transitionCursor = chars[currentChar - 48]->transitions[queueHead->stateID];
 			} else {
-				transitionCursor = chars[currentChar - 48][queueHead->stateID % STATES_HASHMAP];
+				transitionCursor = NULL;
 			}
 		} else {
 			if (queueHead->tape->left == NULL) {
@@ -201,27 +209,39 @@ int simulate(transition ***_chars, long maxSteps, unsigned int **acceptingStateP
 			}
 
 			currentChar = queueHead->tape->left[-queueHead->index - 1];
-			if (chars[currentChar - 48] == NULL) {
-				transitionCursor = NULL;
+			if (chars[currentChar - 48] != NULL && chars[currentChar - 48]->transitions != NULL && queueHead->stateID < chars[currentChar - 48]->size && chars[currentChar - 48]->transitions[queueHead->stateID] != NULL) {
+				transitionCursor = chars[currentChar - 48]->transitions[queueHead->stateID];
 			} else {
-				transitionCursor = chars[currentChar - 48][queueHead->stateID % STATES_HASHMAP];
+				transitionCursor = NULL;
 			}
 		}
 		transitionCounter = 0;
-		transitionTemp = transitionCursor;
 
-		while (transitionTemp != NULL) {
+		/*while (transitionTemp != NULL) {
 			if (transitionTemp->startState == queueHead->stateID && transitionTemp->inChar == currentChar) {
 				transitionCounter++;
 			}
 			transitionTemp = transitionTemp->next;
+		}*/
+		if (chars[currentChar - 48] == NULL) {
+			transitionCounter = 0;
+		} else if (chars[currentChar - 48]->transitions == NULL) {
+			transitionCounter = 0;
+		} else if (queueHead->stateID > chars[currentChar - 48]->size) {
+			transitionCounter = 0;
+		} else if (chars[currentChar - 48]->transitions[queueHead->stateID] == NULL) {
+			transitionCounter = 0;
+		} else {
+			if (chars[currentChar - 48]->transitions[queueHead->stateID]->next == NULL) transitionCounter = 1;
+			else transitionCounter = 2;
 		}
+
 		//printf("ELAB NASTRO (%d) (%d)\n", queueHead->tape->tapeID, transitionCounter);
 		while (transitionCounter > 0 && transitionCursor != NULL) {
-			if ((transitionCursor->startState != queueHead->stateID) || (transitionCursor->inChar != currentChar)) {
+			/*if ((transitionCursor->startState != queueHead->stateID) || (transitionCursor->inChar != currentChar)) {
 				transitionCursor = transitionCursor->next;
 				continue;
-			}
+			}*/
 
 			if (transitionCounter == 1) {
 				// Se è uno stato pozzo, siamo già in U per quel ramo.
@@ -348,9 +368,10 @@ int main(int argc, char const *argv[]) {
 		 parsing_move;
 
 	unsigned int maxSteps,
-				 parsing_state;
+				 parsing_state,
+				 j;
 
-	transition **chars[76];
+	statusInfo *chars[76];
 	for (i = 0; i < 76; i++)
 		chars[i] = NULL;
 
@@ -387,20 +408,50 @@ int main(int argc, char const *argv[]) {
 						node->move = MOVE_STAY;
 					else if (parsing_move == 'L')
 						node->move = MOVE_LEFT;
-					int stateHash = node->startState % STATES_HASHMAP;
-					if (chars[node->inChar-48] == NULL) {
-						transition **table = malloc(STATES_HASHMAP * sizeof(transition*));
-						for (i = 0; i < STATES_HASHMAP; i++)
-							table[i] = NULL;
 
-						table[stateHash] = node;
-						chars[node->inChar-48] = table;
+					if (chars[node->inChar-48] == NULL) {
+						statusInfo *state = malloc(sizeof(statusInfo));
+
+						state->size = STATES_HASHMAP;
+
+						if (node->startState > state->size-1 || node->endState > state->size-1) {
+							//while (node->startState > state->size-1 || node->endState > state->size-1)
+							//	state->size = state->size + STATES_HASHMAP;
+							if (node->startState > node->endState) {
+								state->size = node->startState + 10;
+							} else {
+								state->size = node->endState + 10;
+							}
+						}
+
+						state->transitions = malloc(state->size * sizeof(transition*));
+						for (j = 0; j < state->size; j++)
+							state->transitions[j] = NULL;
+
+						state->transitions[node->startState] = node;
+						chars[node->inChar-48] = state;
 					} else {
-						if (chars[node->inChar-48][stateHash] == NULL) {
-							chars[node->inChar-48][stateHash] = node;
+						if (node->startState > chars[node->inChar-48]->size-1 || node->endState > chars[node->inChar-48]->size-1) {
+							unsigned int previous_size = chars[node->inChar-48]->size;
+							//while (node->startState > chars[node->inChar-48]->size-1 || node->endState > chars[node->inChar-48]->size-1)
+							//	chars[node->inChar-48]->size = chars[node->inChar-48]->size + STATES_HASHMAP;
+							if (node->startState > node->endState) {
+								chars[node->inChar-48]->size = node->startState + 10;
+							} else {
+								chars[node->inChar-48]->size = node->endState + 10;
+							}
+
+							chars[node->inChar-48]->transitions = realloc(chars[node->inChar-48]->transitions, chars[node->inChar-48]->size * sizeof(transition*));
+							for (j = previous_size; j < chars[node->inChar-48]->size; j++) {
+								chars[node->inChar-48]->transitions[j] = NULL;
+							}
+						}
+
+						if (chars[node->inChar-48]->transitions[node->startState] == NULL) {
+							chars[node->inChar-48]->transitions[node->startState] = node;
 						} else {
-							node->next = chars[node->inChar-48][stateHash];
-							chars[node->inChar-48][stateHash] = node;
+							node->next = chars[node->inChar-48]->transitions[node->startState];
+							chars[node->inChar-48]->transitions[node->startState] = node;
 						}
 					}
 				} else if (strcmp(parsing_line, "acc") == 0) {
@@ -440,10 +491,10 @@ int main(int argc, char const *argv[]) {
 		if (chars[i] == NULL) continue;
 
 		printf("\tChar: %c\n", i+48);
-		for (k = 0; k < 16; k++) {
-			if (chars[i][k] == NULL) continue;
+		for (k = 0; k < chars[i]->size; k++) {
+			if (chars[i]->transitions[k] == NULL) continue;
 
-			transition *transitionCursor = chars[i][k];
+			transition *transitionCursor = chars[i]->transitions[k];
 			while (transitionCursor != NULL) {
 				printf("\t\t %d -> %d [%c|%c|%d]\n",
 						transitionCursor->startState,
@@ -478,15 +529,16 @@ int main(int argc, char const *argv[]) {
 	transition *transitionTemp, *transitionCursor;
 	for (i = 0; i < 76; i++) {
 		if (chars[i] == NULL) continue;
-		for (k = 0; k < STATES_HASHMAP; k++) {
-			if (chars[i][k] == NULL) continue;
-			transitionCursor = chars[i][k];
+		for (k = 0; k < chars[i]->size; k++) {
+			if (chars[i]->transitions[k] == NULL) continue;
+			transitionCursor = chars[i]->transitions[k];
 			while (transitionCursor != NULL) {
 				transitionTemp = transitionCursor;
 				transitionCursor = transitionCursor->next;
 				free(transitionTemp);
 			}
 		}
+		free(chars[i]->transitions);
 		free(chars[i]);
 	}
 

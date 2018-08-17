@@ -129,24 +129,6 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 	
 	while (queueLength > 0) {
 		to_exit = 0;
-		/*if (acceptingState[queueHead->stateID] == 1) {
-			to_exit = 1;
-			mt_status = 1;
-
-			while (queueHead != NULL) {
-				queueTemp = queueHead;
-				queueHead = queueHead->next;
-
-				if (queueTemp->tape->left != NULL)
-					free(queueTemp->tape->left);
-				free(queueTemp->tape->right);
-				free(queueTemp->tape);
-				free(queueTemp);
-			}
-
-			queueLength = 0;
-			break;
-		}*/
 
 		if (queueHead->moves >= maxSteps) {
 			mt_status = 2;
@@ -166,6 +148,71 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 
 		transition *transitionCursor = NULL;
 		char currentChar = 0;
+		int limit = 0;
+
+		if (queueHead->index >= 0) {
+			if (queueHead->index >= queueHead->tape->rightMaxSize - 1) {
+				currentChar = '_';
+				limit = 1;
+			} else {
+				currentChar = queueHead->tape->right[queueHead->index];
+			}
+
+			if (chars[currentChar - 48] != NULL && chars[currentChar - 48]->transitions != NULL && queueHead->stateID < chars[currentChar - 48]->size && chars[currentChar - 48]->transitions[queueHead->stateID] != NULL) {
+				transitionCursor = chars[currentChar - 48]->transitions[queueHead->stateID];
+			} else {
+				transitionCursor = NULL;
+			}
+
+		} else {
+			if (-queueHead->index >= queueHead->tape->leftMaxSize - 1) {
+				currentChar = '_';
+				limit = 2;
+			} else {
+				currentChar = queueHead->tape->left[-queueHead->index - 1];
+			}
+
+			if (chars[currentChar - 48] != NULL && chars[currentChar - 48]->transitions != NULL && queueHead->stateID < chars[currentChar - 48]->size && chars[currentChar - 48]->transitions[queueHead->stateID] != NULL) {
+				transitionCursor = chars[currentChar - 48]->transitions[queueHead->stateID];
+			} else {
+				transitionCursor = NULL;
+			}
+		}
+
+		transitionCounter = 0;
+
+		if (chars[currentChar - 48] == NULL) {
+			transitionCounter = 0;
+		} else if (chars[currentChar - 48]->transitions == NULL) {
+			transitionCounter = 0;
+		} else if (queueHead->stateID > chars[currentChar - 48]->size) {
+			transitionCounter = 0;
+		} else if (chars[currentChar - 48]->transitions[queueHead->stateID] == NULL) {
+			transitionCounter = 0;
+		} else {
+			if (chars[currentChar - 48]->transitions[queueHead->stateID]->next == NULL) transitionCounter = 1;
+			else transitionCounter = 2;
+		}
+
+		/*if (transitionCounter == 1 &&
+			transitionCursor->endState == queueHead->stateID &&
+			transitionCursor->inChar == '_' && transitionCursor->outChar == '_' &&
+			((transitionCursor->move == MOVE_RIGHT && limit == 1) || (transitionCursor->move == MOVE_LEFT && limit == 2))) {
+
+			mt_status = 2;
+
+			queueTemp = queueHead;
+			queueHead = queueHead->next;
+
+			if (queueTemp->tape->left != NULL)
+				free(queueTemp->tape->left);
+			free(queueTemp->tape->right);
+			free(queueTemp->tape);
+			free(queueTemp);
+
+			queueLength--;
+			continue;
+		}*/
 
 		if (queueHead->index >= 0) {
 			if (queueHead->index >= queueHead->tape->rightMaxSize - 1) {
@@ -175,13 +222,6 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 				for (int i = queueHead->tape->rightCounter; i < queueHead->tape->rightMaxSize; i++)
 					queueHead->tape->right[i] = '_';
 				queueHead->tape->rightCounter = queueHead->tape->rightMaxSize;
-			}
-
-			currentChar = queueHead->tape->right[queueHead->index];
-			if (chars[currentChar - 48] != NULL && chars[currentChar - 48]->transitions != NULL && queueHead->stateID < chars[currentChar - 48]->size && chars[currentChar - 48]->transitions[queueHead->stateID] != NULL) {
-				transitionCursor = chars[currentChar - 48]->transitions[queueHead->stateID];
-			} else {
-				transitionCursor = NULL;
 			}
 		} else {
 			if (queueHead->tape->left == NULL) {
@@ -200,27 +240,6 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 					queueHead->tape->left[i] = '_';
 				queueHead->tape->leftCounter = queueHead->tape->leftMaxSize;
 			}
-
-			currentChar = queueHead->tape->left[-queueHead->index - 1];
-			if (chars[currentChar - 48] != NULL && chars[currentChar - 48]->transitions != NULL && queueHead->stateID < chars[currentChar - 48]->size && chars[currentChar - 48]->transitions[queueHead->stateID] != NULL) {
-				transitionCursor = chars[currentChar - 48]->transitions[queueHead->stateID];
-			} else {
-				transitionCursor = NULL;
-			}
-		}
-		transitionCounter = 0;
-
-		if (chars[currentChar - 48] == NULL) {
-			transitionCounter = 0;
-		} else if (chars[currentChar - 48]->transitions == NULL) {
-			transitionCounter = 0;
-		} else if (queueHead->stateID > chars[currentChar - 48]->size) {
-			transitionCounter = 0;
-		} else if (chars[currentChar - 48]->transitions[queueHead->stateID] == NULL) {
-			transitionCounter = 0;
-		} else {
-			if (chars[currentChar - 48]->transitions[queueHead->stateID]->next == NULL) transitionCounter = 1;
-			else transitionCounter = 2;
 		}
 
 		if (transitionCounter == 1) {

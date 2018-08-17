@@ -6,8 +6,6 @@
 #define RIGHT_MIN_SIZE 128
 // 128
 #define LEFT_MIN_SIZE 128
-// 10
-#define ACCEPTING_STATES_MIN_SIZE 10
 // 512
 #define STATES_HASHMAP 512
 #define INPUT_BUFFER 128
@@ -84,18 +82,18 @@ int loadTape(tapeInfo **tapeP) {
 	return 0;
 }
 
-int simulate(statusInfo *chars[], long maxSteps, unsigned int **acceptingStateP, int acceptingCounter) {
+int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 	int queueLength = 1;
 	int eof = 0;
 	int i;
 	int mt_status = 0;
 	int transitionCounter = 0;
-	
+
 	int to_exit = 0;
 
 	tapeInfo *basicTape = malloc(sizeof(tapeInfo));
 	//transition *chars[] = _chars;
-	unsigned int *acceptingState = *acceptingStateP;
+	//unsigned int *acceptingState = *acceptingStateP;
 
 	eof = loadTape(&basicTape);
 	if (eof && basicTape->rightCounter == 0) {
@@ -131,13 +129,8 @@ int simulate(statusInfo *chars[], long maxSteps, unsigned int **acceptingStateP,
 	
 	while (queueLength > 0) {
 		to_exit = 0;
-		for (i = 0; i < acceptingCounter; i++) {
-			if (queueHead->stateID == acceptingState[i]) {
-				to_exit = 1;
-				break;
-			}
-		}
-		if (to_exit == 1) {
+		/*if (acceptingState[queueHead->stateID] == 1) {
+			to_exit = 1;
 			mt_status = 1;
 
 			while (queueHead != NULL) {
@@ -153,7 +146,7 @@ int simulate(statusInfo *chars[], long maxSteps, unsigned int **acceptingStateP,
 
 			queueLength = 0;
 			break;
-		}
+		}*/
 
 		if (queueHead->moves >= maxSteps) {
 			mt_status = 2;
@@ -255,6 +248,24 @@ int simulate(statusInfo *chars[], long maxSteps, unsigned int **acceptingStateP,
 
 		//printf("ELAB NASTRO (%d) (%d)\n", queueHead->tape->tapeID, transitionCounter);
 		while (transitionCounter > 0 && transitionCursor != NULL) {
+			if (acceptingState[transitionCursor->endState] == 1 && (queueHead->moves + 1) < maxSteps) {
+				mt_status = 1;
+
+				while (queueHead != NULL) {
+					queueTemp = queueHead;
+					queueHead = queueHead->next;
+
+					if (queueTemp->tape->left != NULL)
+						free(queueTemp->tape->left);
+					free(queueTemp->tape->right);
+					free(queueTemp->tape);
+					free(queueTemp);
+				}
+
+				queueLength = 0;
+				to_exit = 1;
+				break;
+			}
 
 			queue->next = malloc(sizeof(configuration));
 			queue = queue->next;
@@ -280,13 +291,15 @@ int simulate(statusInfo *chars[], long maxSteps, unsigned int **acceptingStateP,
 					queue->tape->left = malloc(sizeof(char) * queue->tape->leftMaxSize);
 					//for (i = 0; i < queue->tape->leftMaxSize; i++) 
 					//	queue->tape->left[i] = queueHead->tape->left[i];
-					strncpy(queue->tape->left, queueHead->tape->left, queue->tape->leftMaxSize);
+					//strncpy(queue->tape->left, queueHead->tape->left, queue->tape->leftMaxSize);
+					memcpy(queue->tape->left, queueHead->tape->left, sizeof(char) * queue->tape->leftMaxSize);
 				}
 
 				queue->tape->right = malloc(sizeof(char) * queue->tape->rightMaxSize);
 				//for (i = 0; i < queue->tape->rightMaxSize; i++) 
 				//	queue->tape->right[i] = queueHead->tape->right[i];
-				strncpy(queue->tape->right, queueHead->tape->right, queue->tape->rightMaxSize);
+				//strncpy(queue->tape->right, queueHead->tape->right, queue->tape->rightMaxSize);
+				memcpy(queue->tape->right, queueHead->tape->right, sizeof(char) * queue->tape->rightMaxSize);
 
 			} else if (transitionCounter == 1) {
 				queueHead->tape->reference_counter = 1;
@@ -357,7 +370,8 @@ int main(int argc, char const *argv[]) {
 		 parsing_ch,
 		 parsing_move;
 
-	unsigned int maxSteps,
+	unsigned int maxState,
+				 maxSteps,
 				 parsing_state,
 				 j;
 
@@ -365,10 +379,8 @@ int main(int argc, char const *argv[]) {
 	for (i = 0; i < 76; i++)
 		chars[i] = NULL;
 
-	int acceptingSize = ACCEPTING_STATES_MIN_SIZE;
-	int acceptingCounter = 0;
-	unsigned int *acceptingState = malloc(sizeof(int) * acceptingSize);
-
+	maxState = 0;
+	int *acceptingState = NULL;
 
 	parsing_step = 0;
 	parsing_index = 0;
@@ -398,6 +410,9 @@ int main(int argc, char const *argv[]) {
 						node->move = MOVE_STAY;
 					else if (parsing_move == 'L')
 						node->move = MOVE_LEFT;
+
+					if (node->startState > maxState) maxState = node->startState;
+					if (node->endState > maxState) maxState = node->endState;
 
 					if (chars[node->inChar-48] == NULL) {
 						statusInfo *state = malloc(sizeof(statusInfo));
@@ -447,16 +462,19 @@ int main(int argc, char const *argv[]) {
 				} else if (strcmp(parsing_line, "acc") == 0) {
 					free(node);
 					parsing_step = 2;
+
+					acceptingState = malloc(sizeof(int) * (maxState + 1));
+					for (j = 0; j < maxState + 1; j++)
+						acceptingState[j] = 0;
 				}
 			} else if (parsing_step == 2) {
 				if (sscanf(parsing_line, "%u", &parsing_state) == 1) {
-					if (acceptingCounter >= acceptingSize) {
+					/*if (acceptingCounter >= acceptingSize) {
 						acceptingSize = acceptingSize * 2;
 						acceptingState = realloc(acceptingState, acceptingSize  * sizeof(long));
-					}
+					}*/
 				
-					acceptingState[acceptingCounter] = parsing_state;
-					acceptingCounter++;
+					acceptingState[parsing_state] = 1;
 				} else if (strcmp(parsing_line, "max") == 0) {
 					parsing_step = 3;
 				}
@@ -513,7 +531,7 @@ int main(int argc, char const *argv[]) {
 	}
 	simulate(chars, maxSteps, &acceptingState, acceptingCounter);
 	*/
-	while(simulate(chars, maxSteps, &acceptingState, acceptingCounter) != 1);
+	while(simulate(chars, maxSteps, acceptingState) != 1);
 
 	free(acceptingState);
 	transition *transitionTemp, *transitionCursor;

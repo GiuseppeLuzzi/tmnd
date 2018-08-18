@@ -267,7 +267,7 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 
 		//printf("ELAB NASTRO (%d) (%d)\n", queueHead->tape->tapeID, transitionCounter);
 		while (transitionCounter > 0 && transitionCursor != NULL) {
-			if (acceptingState[transitionCursor->endState] == 1 && (queueHead->moves + 1) < maxSteps) {
+			if (acceptingState[transitionCursor->endState] == 1 && (queueHead->moves + 1) <= maxSteps) {
 				mt_status = 1;
 
 				while (queueHead != NULL) {
@@ -286,15 +286,15 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 				break;
 			}
 
-			queue->next = malloc(sizeof(configuration));
-			queue = queue->next;
-
-			queue->stateID = transitionCursor->endState;
-			queue->index = queueHead->index;
-			queue->moves = queueHead->moves + 1;
-
 			if (transitionCounter > 1) {
 				queueHead->tape->reference_counter = 0;
+
+				queue->next = malloc(sizeof(configuration));
+				queue = queue->next;
+
+				queue->stateID = transitionCursor->endState;
+				queue->index = queueHead->index;
+				queue->moves = queueHead->moves + 1;
 
 				queue->tape = malloc(sizeof(tapeInfo));
 				queue->tape->reference_counter = 0;
@@ -308,22 +308,22 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 					queue->tape->left = NULL;
 				} else {
 					queue->tape->left = malloc(sizeof(char) * queue->tape->leftMaxSize);
-					//for (i = 0; i < queue->tape->leftMaxSize; i++) 
-					//	queue->tape->left[i] = queueHead->tape->left[i];
-					//strncpy(queue->tape->left, queueHead->tape->left, queue->tape->leftMaxSize);
 					memcpy(queue->tape->left, queueHead->tape->left, sizeof(char) * queue->tape->leftMaxSize);
 				}
 
 				queue->tape->right = malloc(sizeof(char) * queue->tape->rightMaxSize);
-				//for (i = 0; i < queue->tape->rightMaxSize; i++) 
-				//	queue->tape->right[i] = queueHead->tape->right[i];
-				//strncpy(queue->tape->right, queueHead->tape->right, queue->tape->rightMaxSize);
 				memcpy(queue->tape->right, queueHead->tape->right, sizeof(char) * queue->tape->rightMaxSize);
 
 			} else if (transitionCounter == 1) {
 				queueHead->tape->reference_counter = 1;
-				//printf("LINK NASTRO %d (g)\n", queueHead->tape->tapeID);
-				queue->tape = queueHead->tape;
+				
+				queue->next = queueHead;
+				queue = queue->next;
+
+				queue->stateID = transitionCursor->endState;
+				queue->index = queueHead->index;
+				queue->moves = queueHead->moves + 1;
+				queueTemp = queueHead->next;
 			}
 
 			if (transitionCursor->inChar != transitionCursor->outChar) {
@@ -350,16 +350,19 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 		if (to_exit == 1)
 			continue;
 
-		queueTemp = queueHead;
-		queueHead = queueHead->next;
 		if (transitionCounter == 0 || transitionCounter > 1) {
+			queueTemp = queueHead;
+			queueHead = queueHead->next;
 			//printf("DIST NASTRO %d (h)\n", queueTemp->tape->tapeID);
 			if (queueTemp->tape->left != NULL)
 				free(queueTemp->tape->left);
 			free(queueTemp->tape->right);
 			free(queueTemp->tape);
+			free(queueTemp);
+		} else {
+			queueHead = queueTemp;
 		}
-		free(queueTemp);
+
 
 		queueLength--;
 		//printf("---\n");

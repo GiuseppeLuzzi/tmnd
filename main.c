@@ -148,29 +148,43 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 
 		transition *transitionCursor = NULL;
 		char currentChar = 0;
-		int limit = 0;
 
 		if (queueHead->index >= 0) {
 			if (queueHead->index >= queueHead->tape->rightMaxSize - 1) {
-				currentChar = '_';
-				limit = 1;
-			} else {
-				currentChar = queueHead->tape->right[queueHead->index];
+				queueHead->tape->rightMaxSize = queueHead->tape->rightMaxSize * 2;
+				queueHead->tape->right = realloc(queueHead->tape->right, sizeof(char) * queueHead->tape->rightMaxSize);
+				
+				for (int i = queueHead->tape->rightCounter; i < queueHead->tape->rightMaxSize; i++)
+					queueHead->tape->right[i] = '_';
+				queueHead->tape->rightCounter = queueHead->tape->rightMaxSize;
 			}
+
+			currentChar = queueHead->tape->right[queueHead->index];
 
 			if (chars[currentChar - 48] != NULL && chars[currentChar - 48]->transitions != NULL && queueHead->stateID < chars[currentChar - 48]->size && chars[currentChar - 48]->transitions[queueHead->stateID] != NULL) {
 				transitionCursor = chars[currentChar - 48]->transitions[queueHead->stateID];
 			} else {
 				transitionCursor = NULL;
 			}
-
 		} else {
-			if (-queueHead->index >= queueHead->tape->leftMaxSize - 1) {
-				currentChar = '_';
-				limit = 2;
-			} else {
-				currentChar = queueHead->tape->left[-queueHead->index - 1];
+			if (queueHead->tape->left == NULL) {
+				queueHead->tape->leftMaxSize = LEFT_MIN_SIZE;
+				queueHead->tape->left = malloc(sizeof(char) * queueHead->tape->leftMaxSize);
+				for (int i = 0; i < queueHead->tape->leftMaxSize; i++)
+					queueHead->tape->left[i] = '_';
+				queueHead->tape->leftCounter = queueHead->tape->leftMaxSize;
 			}
+
+			if (-queueHead->index >= queueHead->tape->leftMaxSize - 1) {
+				queueHead->tape->leftMaxSize = queueHead->tape->leftMaxSize * 2;
+				queueHead->tape->left = realloc(queueHead->tape->left, sizeof(char) * queueHead->tape->leftMaxSize);
+				
+				for (int i = queueHead->tape->leftCounter; i < queueHead->tape->leftMaxSize; i++)
+					queueHead->tape->left[i] = '_';
+				queueHead->tape->leftCounter = queueHead->tape->leftMaxSize;
+			}
+
+			currentChar = queueHead->tape->left[-queueHead->index - 1];
 
 			if (chars[currentChar - 48] != NULL && chars[currentChar - 48]->transitions != NULL && queueHead->stateID < chars[currentChar - 48]->size && chars[currentChar - 48]->transitions[queueHead->stateID] != NULL) {
 				transitionCursor = chars[currentChar - 48]->transitions[queueHead->stateID];
@@ -192,54 +206,6 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 		} else {
 			if (chars[currentChar - 48]->transitions[queueHead->stateID]->next == NULL) transitionCounter = 1;
 			else transitionCounter = 2;
-		}
-
-		/*if (transitionCounter == 1 &&
-			transitionCursor->endState == queueHead->stateID &&
-			transitionCursor->inChar == '_' && transitionCursor->outChar == '_' &&
-			((transitionCursor->move == MOVE_RIGHT && limit == 1) || (transitionCursor->move == MOVE_LEFT && limit == 2))) {
-
-			mt_status = 2;
-
-			queueTemp = queueHead;
-			queueHead = queueHead->next;
-
-			if (queueTemp->tape->left != NULL)
-				free(queueTemp->tape->left);
-			free(queueTemp->tape->right);
-			free(queueTemp->tape);
-			free(queueTemp);
-
-			queueLength--;
-			continue;
-		}*/
-
-		if (queueHead->index >= 0) {
-			if (queueHead->index >= queueHead->tape->rightMaxSize - 1) {
-				queueHead->tape->rightMaxSize = queueHead->tape->rightMaxSize * 2;
-				queueHead->tape->right = realloc(queueHead->tape->right, sizeof(char) * queueHead->tape->rightMaxSize);
-				
-				for (int i = queueHead->tape->rightCounter; i < queueHead->tape->rightMaxSize; i++)
-					queueHead->tape->right[i] = '_';
-				queueHead->tape->rightCounter = queueHead->tape->rightMaxSize;
-			}
-		} else {
-			if (queueHead->tape->left == NULL) {
-				queueHead->tape->leftMaxSize = LEFT_MIN_SIZE;
-				queueHead->tape->left = malloc(sizeof(char) * queueHead->tape->leftMaxSize);
-				for (int i = 0; i < queueHead->tape->leftMaxSize; i++)
-					queueHead->tape->left[i] = '_';
-				queueHead->tape->leftCounter = queueHead->tape->leftMaxSize;
-			}
-
-			if (-queueHead->index >= queueHead->tape->leftMaxSize - 1) {
-				queueHead->tape->leftMaxSize = queueHead->tape->leftMaxSize * 2;
-				queueHead->tape->left = realloc(queueHead->tape->left, sizeof(char) * queueHead->tape->leftMaxSize);
-				
-				for (int i = queueHead->tape->leftCounter; i < queueHead->tape->leftMaxSize; i++)
-					queueHead->tape->left[i] = '_';
-				queueHead->tape->leftCounter = queueHead->tape->leftMaxSize;
-			}
 		}
 
 		if (transitionCounter == 1) {

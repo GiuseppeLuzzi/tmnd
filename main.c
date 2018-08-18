@@ -69,7 +69,7 @@ int loadTape(tapeInfo **tapeP) {
 			break;
 		}
 		if (tape->rightCounter == tape->rightMaxSize) {
-			tape->rightMaxSize = tape->rightMaxSize * 2;
+			tape->rightMaxSize = tape->rightMaxSize + RIGHT_MIN_SIZE;
 			tape->right = realloc(tape->right, sizeof(char) * tape->rightMaxSize);
 			for (int i = tape->rightCounter; i < tape->rightMaxSize; i++)
 				tape->right[i] = '_';
@@ -151,7 +151,7 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 
 		if (queueHead->index >= 0) {
 			if (queueHead->index >= queueHead->tape->rightMaxSize - 1) {
-				queueHead->tape->rightMaxSize = queueHead->tape->rightMaxSize * 2;
+				queueHead->tape->rightMaxSize = queueHead->tape->rightMaxSize + RIGHT_MIN_SIZE;
 				queueHead->tape->right = realloc(queueHead->tape->right, sizeof(char) * queueHead->tape->rightMaxSize);
 				
 				for (int i = queueHead->tape->rightCounter; i < queueHead->tape->rightMaxSize; i++)
@@ -176,7 +176,7 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 			}
 
 			if (-queueHead->index >= queueHead->tape->leftMaxSize - 1) {
-				queueHead->tape->leftMaxSize = queueHead->tape->leftMaxSize * 2;
+				queueHead->tape->leftMaxSize = queueHead->tape->leftMaxSize + LEFT_MIN_SIZE;
 				queueHead->tape->left = realloc(queueHead->tape->left, sizeof(char) * queueHead->tape->leftMaxSize);
 				
 				for (int i = queueHead->tape->leftCounter; i < queueHead->tape->leftMaxSize; i++)
@@ -208,7 +208,7 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 			else transitionCounter = 2;
 		}
 
-		if (transitionCounter == 1) {
+		/*if (transitionCounter == 1) {
 			// Se è uno stato pozzo, siamo già in U per quel ramo.
 			if (transitionCursor->inChar == transitionCursor->outChar &&
 				transitionCursor->move == MOVE_STAY &&
@@ -229,7 +229,7 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 				queueLength--;
 				continue;
 			}
-		}
+		}*/
 
 		//printf("ELAB NASTRO (%d) (%d)\n", queueHead->tape->tapeID, transitionCounter);
 		while (transitionCounter > 0 && transitionCursor != NULL) {

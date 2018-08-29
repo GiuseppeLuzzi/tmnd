@@ -92,8 +92,6 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 	int to_exit = 0;
 
 	tapeInfo *basicTape = malloc(sizeof(tapeInfo));
-	//transition *chars[] = _chars;
-	//unsigned int *acceptingState = *acceptingStateP;
 
 	eof = loadTape(&basicTape);
 	if (eof && basicTape->rightCounter == 0) {
@@ -219,7 +217,6 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 				queueTemp = queueHead;
 				queueHead = queueHead->next;
 
-				//printf("DIST NASTRO %d (d)\n", queueTemp->tape->tapeID);
 				if (queueTemp->tape->left != NULL)
 					free(queueTemp->tape->left);
 				free(queueTemp->tape->right);
@@ -231,7 +228,6 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 			}
 		}*/
 
-		//printf("ELAB NASTRO (%d) (%d)\n", queueHead->tape->tapeID, transitionCounter);
 		while (transitionCounter > 0 && transitionCursor != NULL) {
 			if (acceptingState[transitionCursor->endState] == 1 && (queueHead->moves + 1) <= maxSteps) {
 				mt_status = 1;
@@ -269,7 +265,6 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 				queue->tape->leftMaxSize = queueHead->tape->leftMaxSize;
 				queue->tape->rightMaxSize = queueHead->tape->rightMaxSize;
 
-				//printf("CREO NASTRO %d (f)\n", queue->tape->tapeID);
 				if (queueHead->tape->left == NULL) {
 					queue->tape->left = NULL;
 				} else {
@@ -319,7 +314,6 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 		if (transitionCounter == 0 || transitionCounter > 1) {
 			queueTemp = queueHead;
 			queueHead = queueHead->next;
-			//printf("DIST NASTRO %d (h)\n", queueTemp->tape->tapeID);
 			if (queueTemp->tape->left != NULL)
 				free(queueTemp->tape->left);
 			free(queueTemp->tape->right);
@@ -331,7 +325,6 @@ int simulate(statusInfo *chars[], long maxSteps, int *acceptingState) {
 
 
 		queueLength--;
-		//printf("---\n");
 	}
 
 	if (mt_status == 2) {
@@ -408,8 +401,6 @@ int main(int argc, char const *argv[]) {
 						state->size = STATES_HASHMAP;
 
 						if (node->startState > state->size-1 || node->endState > state->size-1) {
-							//while (node->startState > state->size-1 || node->endState > state->size-1)
-							//	state->size = state->size + STATES_HASHMAP;
 							if (node->startState > node->endState) {
 								state->size = node->startState + 10;
 							} else {
@@ -426,8 +417,6 @@ int main(int argc, char const *argv[]) {
 					} else {
 						if (node->startState > chars[node->inChar-48]->size-1 || node->endState > chars[node->inChar-48]->size-1) {
 							unsigned int previous_size = chars[node->inChar-48]->size;
-							//while (node->startState > chars[node->inChar-48]->size-1 || node->endState > chars[node->inChar-48]->size-1)
-							//	chars[node->inChar-48]->size = chars[node->inChar-48]->size + STATES_HASHMAP;
 							if (node->startState > node->endState) {
 								chars[node->inChar-48]->size = node->startState + 10;
 							} else {
@@ -457,10 +446,6 @@ int main(int argc, char const *argv[]) {
 				}
 			} else if (parsing_step == 2) {
 				if (sscanf(parsing_line, "%u", &parsing_state) == 1) {
-					/*if (acceptingCounter >= acceptingSize) {
-						acceptingSize = acceptingSize * 2;
-						acceptingState = realloc(acceptingState, acceptingSize  * sizeof(long));
-					}*/
 				
 					acceptingState[parsing_state] = 1;
 				} else if (strcmp(parsing_line, "max") == 0) {
@@ -482,43 +467,6 @@ int main(int argc, char const *argv[]) {
 	}
 
 	
-	/*printf(">> Riepilogo\n");
-	for(i = 0; i < 76; i++) {
-		if (chars[i] == NULL) continue;
-
-		printf("\tChar: %c\n", i+48);
-		for (k = 0; k < chars[i]->size; k++) {
-			if (chars[i]->transitions[k] == NULL) continue;
-
-			transition *transitionCursor = chars[i]->transitions[k];
-			while (transitionCursor != NULL) {
-				printf("\t\t %d -> %d [%c|%c|%d]\n",
-						transitionCursor->startState,
-						transitionCursor->endState,
-						transitionCursor->inChar,
-						transitionCursor->outChar,
-						transitionCursor->move);
-				transitionCursor = transitionCursor->next;
-			}
-		}
-	}
-	printf("\tStati d'accettazione:\n");
-	for (i = 0; i < acceptingCounter; i++) {
-		printf("\t\t- %d\n", acceptingState[i]);
-	}*/
-
-	/*
-	int lineToSkip = 1;
-	while (lineToSkip > 0) {
-		while ((parsing_ch = getchar()) != EOF) {
-			if (parsing_ch == '\n') {
-				break;
-			}
-		}
-		lineToSkip -= 1;
-	}
-	simulate(chars, maxSteps, &acceptingState, acceptingCounter);
-	*/
 	while(simulate(chars, maxSteps, acceptingState) != 1);
 
 	free(acceptingState);
